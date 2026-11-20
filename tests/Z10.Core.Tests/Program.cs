@@ -262,6 +262,55 @@ var tests = new List<(string Name, Action Body)>
         Eq(80.0, hub.GetValue("custom:m"));
         Eq(40.0, hub.GetValue("auto:gpu/Load/GPU Memory"));
     }),
+    ("Verlauf mit Rahmen: Minimum liegt auf der Rahmenlinie", () =>
+    {
+        var h = new SensorHistory();
+        for (int i = 0; i < 10; i++) h.Record("/s", i == 9 ? 100 : 0);
+        var r = new AppletRenderer(PixelTextRasterizer.Instance, StaticSensorSource.Demo(), h);
+        foreach (var filled in new[] { true, false })
+        {
+            var a = new Applet { Widgets = { new GraphWidget { X = 0, Y = 0, W = 20, H = 10, Sensor = "/s", Min = 0, Max = 100, Seconds = 10, Filled = filled, Border = true } } };
+            var fb = new Framebuffer();
+            r.Render(a, fb, DateTime.Now);
+            // Zeile direkt über dem unteren Rahmen (y = 8) bleibt bei Wert 0 leer
+            True(!fb[5, 8], $"Linie über dem Rahmen (gefüllt={filled})");
+            True(fb[5, 9], "Rahmen unten fehlt");
+            True(fb[18, 1], $"Spitze fehlt (gefüllt={filled})");
+        }
+    }),
+    ("Afterburner: Shared Memory auslesen", () =>
+    {
+        const int header = 32, entry = 1324;
+        var mem = new byte[header + 3 * entry];
+        void U(int o, uint v) => System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(mem.AsSpan(o, 4), v);
+        void F(int o, float v) => System.Buffers.Binary.BinaryPrimitives.WriteSingleLittleEndian(mem.AsSpan(o, 4), v);
+        void S(int o, string v) => System.Text.Encoding.Latin1.GetBytes(v).CopyTo(mem, o);
+        U(0, MahmReader.Signature); U(4, 0x00020000); U(8, header); U(12, 3); U(16, entry);
+        void E(int i, string name, string units, string loc, float val, uint gpu)
+        {
+            int e = header + i * entry;
+            S(e, name); S(e + 260, units); S(e + 520, loc); F(e + 1300, val); U(e + 1316, gpu);
+        }
+        E(0, "GPU temperature", "°C", "GPU-Temperatur", 61.5f, 0);
+        E(1, "Framerate", "FPS", "Framerate", float.MaxValue, uint.MaxValue);   // kein RTSS → ungültig
+        E(2, "CPU usage", "%", "", 23f, uint.MaxValue);
+        var list = MahmReader.Parse(mem)!;
+        Eq(3, list.Count);
+        Eq("/afterburner/gpu0/gpu-temperature", list[0].Id);
+        Eq("GPU-Temperatur", list[0].Name);
+        Eq("Temperature", list[0].Type);
+        Eq(61.5, list[0].Value);
+        Eq(null, list[1].Value);
+        Eq("Framerate", list[1].Type);
+        Eq("CPU usage", list[2].Name);
+        mem[0] = 0; Eq(null, MahmReader.Parse(mem));
+    }),
+    ("Format für Stummschaltung", () =>
+    {
+        var de = CultureInfo.GetCultureInfo("de-DE");
+        Eq("STUMM", ValueFormatter.Format("{value:STUMM;;laut}", 1, de));
+        Eq("laut", ValueFormatter.Format("{value:STUMM;;laut}", 0, de));
+    }),
 };
 
 int failed = 0;

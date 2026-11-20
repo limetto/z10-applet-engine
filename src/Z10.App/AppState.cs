@@ -19,6 +19,8 @@ public sealed class AppState : IDisposable
     public SensorHub Sensors { get; }
     public LhmSensorSource Lhm { get; }
     public RtssSensorSource Rtss { get; }
+    public AfterburnerSensorSource Afterburner { get; }
+    public AudioSensorSource Audio { get; }
     public WpfTextRasterizer Text { get; } = new();
     public AppletEngine Engine { get; }
 
@@ -31,7 +33,9 @@ public sealed class AppState : IDisposable
         Applets = new ObservableCollection<Applet>(Store.LoadApplets());
         Lhm = new LhmSensorSource();
         Rtss = new RtssSensorSource { Enabled = Settings.RtssEnabled };
-        Sensors = new SensorHub(Lhm, Rtss);
+        Afterburner = new AfterburnerSensorSource { Enabled = Settings.AfterburnerEnabled };
+        Audio = new AudioSensorSource { Enabled = Settings.AudioEnabled };
+        Sensors = new SensorHub(Lhm, Rtss, Afterburner, Audio);
         Sensors.SetCustomSensors(Settings.CustomSensors);
         Engine = new AppletEngine(Sensors, Text, () => Z10HidDevice.TryOpen(), UnleashDetector.IsRunning, Settings);
         Engine.SetApplets(Applets);
@@ -90,6 +94,8 @@ public sealed class AppState : IDisposable
     public void SaveSettings()
     {
         Rtss.Enabled = Settings.RtssEnabled;
+        Afterburner.Enabled = Settings.AfterburnerEnabled;
+        Audio.Enabled = Settings.AudioEnabled;
         Sensors.SetCustomSensors(Settings.CustomSensors);
         Store.SaveSettings(Settings);
         Engine.UpdateSettings(Settings);

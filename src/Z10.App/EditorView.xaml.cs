@@ -561,6 +561,12 @@ public partial class EditorView : UserControl
             new(DefaultApplets.RamUsed, "Automatisch · RAM belegt (GB)"),
             new(DefaultApplets.RamFree, "Automatisch · RAM frei (GB)"),
             new(DefaultApplets.RamLoad, "Automatisch · RAM-Auslastung"),
+            new(RtssSensorSource.FpsId, "RTSS · Framerate (FPS)"),
+            new(RtssSensorSource.FrametimeId, "RTSS · Frametime (ms)"),
+            new(AudioSensorSource.DefaultOutVolume, "Audio · Lautstärke Standardgerät (%)"),
+            new(AudioSensorSource.DefaultOutMute, "Audio · Standardgerät stumm (1/0)"),
+            new(AudioSensorSource.DefaultInVolume, "Audio · Mikrofon-Lautstärke (%)"),
+            new(AudioSensorSource.DefaultInMute, "Audio · Mikrofon stumm (1/0)"),
         };
         foreach (var s in _state.Sensors.Sensors.OrderBy(s => s.Hardware).ThenBy(s => s.Type).ThenBy(s => s.Name))
         {

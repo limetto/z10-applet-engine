@@ -12,7 +12,7 @@ Die Applets setzt du im Layout-Editor aus Bausteinen zusammen. Die Werte kommen 
 - **Bausteine:** Text, Sensorwert (mit Format wie `{value/1000:0.0} GHz`), Balken, Verlauf, Uhr/Datum, 8×8-Symbol
 - **Schriften:** eingebaute 5×7-Pixelschrift in 4 Größen oder jede Windows-Schrift (ohne Kantenglättung gerendert)
 - **Glättung** pro Baustein (Mittelwert oder Median über N Sekunden) für stark schwankende Sensoren
-- **Weitere Datenquellen:** RTSS (Framerate, Frametime) und **eigene Sensoren** per Formel aus bestehenden Sensoren
+- **Weitere Datenquellen:** RTSS (Framerate, Frametime), MSI Afterburner (alle Überwachungswerte), Lautstärke und Stummschaltung der Audiogeräte und **eigene Sensoren** per Formel aus bestehenden Sensoren
 - **Warnwerte:** Ein Baustein wird invertiert oder blinkt, wenn ein Grenzwert überschritten ist. Das Applet kann dann sofort nach vorne springen.
 - **Auto-Sensoren** wie „CPU-Temperatur“, die auf Intel, AMD und NVIDIA ohne Anpassung funktionieren
 - Helligkeit und Kontrast (5 Stufen), Symbol im Infobereich, Autostart ohne UAC-Abfrage
@@ -66,6 +66,24 @@ Erlaubt sind `+ - * / ^`, Klammern, `min`, `max`, `avg`, `sum` (diese übersprin
 ### RTSS (RivaTuner Statistics Server)
 
 Läuft RTSS, stehen `/rtss/fps` (Framerate) und `/rtss/frametime` (ms) des aktiven Spiels zur Verfügung. Abschalten kannst du das unter *Gerät & Sensoren*.
+RTSS ist ein eigenes Programm (Symbol im Infobereich), das mit MSI Afterburner installiert wird. Afterburner allein liefert keine FPS. RTSS muss laufen, zum Beispiel mit „Start with Windows“ in den RTSS-Einstellungen.
+
+### MSI Afterburner
+
+Läuft Afterburner, erscheinen alle Werte aus seiner Hardwareüberwachung als `/afterburner/…`, zum Beispiel `/afterburner/gpu0/gpu-temperature`. Die Framerate darin ist nur gefüllt, wenn auch RTSS läuft.
+
+### Lautstärke
+
+Über die Windows Core Audio API gibt es folgende Sensoren:
+
+| Sensor | Wert |
+|---|---|
+| `/audio/default/volume` | Lautstärke des Standard-Wiedergabegeräts in % |
+| `/audio/default/mute` | Standard-Wiedergabegerät stumm: 1, sonst 0 |
+| `/audio/default-mic/volume`, `/audio/default-mic/mute` | Standard-Mikrofon |
+| `/audio/out/<gerät>/volume`, `/audio/in/<gerät>/volume` | jedes einzelne aktive Gerät |
+
+Text je nach Stummschaltung zeigt das Format `{value:STUMM;;laut}`: Bei 1 erscheint „STUMM“, bei 0 „laut“.
 
 ### Glättung
 

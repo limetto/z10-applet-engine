@@ -32,6 +32,8 @@ public partial class DeviceView : UserControl
         ReleaseOnExitBox.IsChecked = s.ReleaseOnExit;
         AutoStartBox.IsChecked = AutoStart.IsEnabled();
         RtssBox.IsChecked = s.RtssEnabled;
+        AfterburnerBox.IsChecked = s.AfterburnerEnabled;
+        AudioBox.IsChecked = s.AudioEnabled;
         UpdateBacklightLabels();
         foreach (var c in s.CustomSensors) _custom.Add(Copy(c));
         CustomList.ItemsSource = _custom;
@@ -52,11 +54,21 @@ public partial class DeviceView : UserControl
         var err = _state.Sensors.Error;
         SensorError.Visibility = err is null ? Visibility.Collapsed : Visibility.Visible;
         SensorError.Text = err is null ? "" : "Sensorfehler: " + err;
+        var c = CultureInfo.CurrentCulture;
         RtssStatus.Text = !_state.Settings.RtssEnabled ? "ausgeschaltet"
-            : !_state.Rtss.IsAvailable ? "RTSS läuft nicht"
+            : !_state.Rtss.IsAvailable
+                ? (_state.Afterburner.IsAvailable ? "RTSS läuft nicht – Afterburner allein liefert keine Framerate" : "RTSS läuft nicht")
             : _state.Rtss.ActiveApp is string app
-                ? $"aktiv: {app} · {_state.Sensors.GetValue(RtssSensorSource.FpsId)?.ToString("0", CultureInfo.CurrentCulture) ?? "–"} FPS"
+                ? $"aktiv: {app} · {_state.Sensors.GetValue(RtssSensorSource.FpsId)?.ToString("0", c) ?? "–"} FPS"
                 : "RTSS läuft, aber kein Spiel erkannt";
+        int abCount = _state.Afterburner.Sensors.Count;
+        AfterburnerStatus.Text = !_state.Settings.AfterburnerEnabled ? "ausgeschaltet"
+            : _state.Afterburner.IsAvailable ? $"verbunden · {abCount} Werte" : "Afterburner läuft nicht";
+        var vol = _state.Sensors.GetValue(AudioSensorSource.DefaultOutVolume);
+        var muted = _state.Sensors.GetValue(AudioSensorSource.DefaultOutMute) == 1;
+        AudioStatus.Text = !_state.Settings.AudioEnabled ? "ausgeschaltet"
+            : _state.Audio.Error is string ae ? "Fehler: " + ae
+            : vol is double volPct ? $"Standardgerät: {volPct.ToString("0", c)} %{(muted ? " (stumm)" : "")} · Sensoren unter /audio/…" : "kein Wiedergabegerät gefunden";
         UpdateCustomResult();
         if (!IsVisible) return;
 
@@ -121,9 +133,11 @@ public partial class DeviceView : UserControl
         AutoStartBox.IsChecked = AutoStart.IsEnabled();
     }
 
-    private void Rtss_Click(object sender, RoutedEventArgs e)
+    private void Sources_Click(object sender, RoutedEventArgs e)
     {
         _state.Settings.RtssEnabled = RtssBox.IsChecked == true;
+        _state.Settings.AfterburnerEnabled = AfterburnerBox.IsChecked == true;
+        _state.Settings.AudioEnabled = AudioBox.IsChecked == true;
         _state.SaveSettings();
         Refresh();
     }

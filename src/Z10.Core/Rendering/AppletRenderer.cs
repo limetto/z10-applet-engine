@@ -144,6 +144,11 @@ public sealed class AppletRenderer
 
         int n = values.Length;
         int prevX = -1, prevY = -1;
+        // Mit Rahmen dient die untere Rahmenlinie als Nulllinie: Werte am Minimum zeichnen nichts extra.
+        // Ohne Rahmen bleibt am Minimum eine 1-Pixel-Linie sichtbar.
+        int baseY = g.Border ? g.Y + g.H - 1 : g.Y + g.H;
+        int span = g.Border ? innerH : innerH - 1;
+        int minH = g.Border ? 0 : 1;
         for (int i = 0; i < n; i++)
         {
             if (values[i] is not double v) { prevX = -1; continue; }
@@ -151,9 +156,9 @@ public sealed class AppletRenderer
             int x = g.X + inset + innerW - 1 - (int)Math.Round((n - 1 - i) * (innerW - 1) / (double)Math.Max(1, g.Seconds - 1));
             if (x < g.X + inset) continue;
             double frac = Math.Clamp((v - min) / (max - min), 0, 1);
-            int y = g.Y + inset + innerH - 1 - (int)Math.Round(frac * (innerH - 1));
+            int y = baseY - (minH + (int)Math.Round(frac * span));
             if (g.Filled)
-                fb.FillRect(x, y, 1, g.Y + inset + innerH - y);
+                fb.FillRect(x, y, 1, baseY - y);
             if (prevX >= 0)
             {
                 if (g.Filled)
@@ -161,7 +166,7 @@ public sealed class AppletRenderer
                     for (int xx = prevX + 1; xx < x; xx++)
                     {
                         int yy = prevY + (y - prevY) * (xx - prevX) / Math.Max(1, x - prevX);
-                        fb.FillRect(xx, yy, 1, g.Y + inset + innerH - yy);
+                        fb.FillRect(xx, yy, 1, baseY - yy);
                     }
                 }
                 else

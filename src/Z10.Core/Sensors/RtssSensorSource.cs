@@ -1,5 +1,4 @@
 using System.Buffers.Binary;
-using System.IO.MemoryMappedFiles;
 using System.Runtime.Versioning;
 using System.Text;
 
@@ -31,33 +30,9 @@ public sealed class RtssSensorSource : SensorSourceBase
             return Array.Empty<SensorInfo>();
         }
         RtssReading? reading = null;
-        try
-        {
-            using var mmf = MemoryMappedFile.OpenExisting(MapName, MemoryMappedFileRights.Read);
-            using var view = mmf.CreateViewStream(0, 0, MemoryMappedFileAccess.Read);
-            var buffer = new byte[Math.Min(view.Length, 4 * 1024 * 1024)];
-            int read = 0;
-            while (read < buffer.Length)
-            {
-                int n = view.Read(buffer, read, buffer.Length - read);
-                if (n <= 0) break;
-                read += n;
-            }
-            IsAvailable = true;
-            reading = RtssReader.Parse(buffer.AsSpan(0, read), (uint)Environment.TickCount);
-        }
-        catch (FileNotFoundException)
-        {
-            IsAvailable = false;      // RTSS läuft nicht – kein Fehler, nur keine Werte
-        }
-        catch (IOException)
-        {
-            IsAvailable = false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            IsAvailable = false;
-        }
+        var mem = SharedMemory.TryRead(MapName);
+        IsAvailable = mem is not null;
+        if (mem is not null) reading = RtssReader.Parse(mem, (uint)Environment.TickCount);
 
         ActiveApp = reading?.App;
         string hw = !IsAvailable ? "RTSS (nicht gestartet)" : reading is null ? "RTSS (kein Spiel aktiv)" : $"RTSS · {reading.App}";

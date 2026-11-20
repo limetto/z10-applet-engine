@@ -52,11 +52,15 @@
           <CheckBox x:Name="AutoStartBox" Content="Mit Windows starten (über die Aufgabenplanung, ohne UAC-Abfrage)" Click="AutoStart_Click"/>
           <CheckBox Content="Applets mit E6 / E7 wechseln (folgt später)" IsEnabled="False" Foreground="{StaticResource MutedBrush}"/>
 
-          <TextBlock Text="RivaTuner Statistics Server" Style="{StaticResource H2}" Margin="0,20,0,4"/>
-          <CheckBox x:Name="RtssBox" Content="RTSS als Datenquelle (Framerate, Frametime)" Click="Rtss_Click"/>
-          <TextBlock x:Name="RtssStatus" Style="{StaticResource Hint}" Text="–"/>
+          <TextBlock Text="Weitere Datenquellen" Style="{StaticResource H2}" Margin="0,20,0,4"/>
+          <CheckBox x:Name="RtssBox" Content="RTSS (Framerate, Frametime)" Click="Sources_Click"/>
+          <TextBlock x:Name="RtssStatus" Style="{StaticResource Hint}" Margin="26,0,0,6" Text="–"/>
+          <CheckBox x:Name="AfterburnerBox" Content="MSI Afterburner (alle Überwachungswerte)" Click="Sources_Click"/>
+          <TextBlock x:Name="AfterburnerStatus" Style="{StaticResource Hint}" Margin="26,0,0,6" Text="–"/>
+          <CheckBox x:Name="AudioBox" Content="Lautstärke der Audiogeräte" Click="Sources_Click"/>
+          <TextBlock x:Name="AudioStatus" Style="{StaticResource Hint}" Margin="26,0,0,6" Text="–"/>
           <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0"
-                     Text="Sensoren: /rtss/fps und /rtss/frametime. RTSS muss laufen und das Spiel erkannt haben (z. B. mit eingeschaltetem OSD)."/>
+                     Text="Framerate gibt es nur, wenn der RivaTuner Statistics Server läuft. Er ist ein eigenes Programm (Symbol im Infobereich), das mit Afterburner installiert wird. Afterburner allein liefert keine FPS."/>
         </StackPanel>
       </ScrollViewer>
     </Border>
