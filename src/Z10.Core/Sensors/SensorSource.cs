@@ -39,8 +39,8 @@ public abstract class SensorSourceBase : ISensorSource
         IReadOnlyList<SensorInfo> fresh;
         try
         {
+            Error = null;              // ReadSensors darf selbst einen Fehler setzen
             fresh = ReadSensors();
-            Error = null;
         }
         catch (Exception ex)
         {
@@ -55,6 +55,18 @@ public abstract class SensorSourceBase : ISensorSource
     }
 
     protected abstract IReadOnlyList<SensorInfo> ReadSensors();
+
+    /// <summary>Sensorbeschreibung zu einer Id oder Auto-Abfrage (für Einheit und Anzeige).</summary>
+    public SensorInfo? Find(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return null;
+        lock (_lock)
+        {
+            if (id.StartsWith(AutoQuery.Prefix, StringComparison.OrdinalIgnoreCase))
+                return AutoQuery.Resolve(id, _sensors);
+            return _byId.TryGetValue(id, out var s) ? s : null;
+        }
+    }
 
     public double? GetValue(string id)
     {
@@ -122,6 +134,25 @@ public sealed class SensorHistory
             q.Enqueue(value);
             while (q.Count > Capacity) q.Dequeue();
         }
+    }
+
+    /// <summary>Geglätteter Wert über die letzten <paramref name="samples"/> Messungen; null ohne Daten.</summary>
+    public double? Smoothed(string id, Model.SmoothingMode mode, int samples)
+    {
+        var vals = Last(id, Math.Max(1, samples)).Where(v => v.HasValue).Select(v => v!.Value).ToArray();
+        if (vals.Length == 0) return null;
+        return Smooth(vals, mode);
+    }
+
+    public static double Smooth(IReadOnlyList<double> vals, Model.SmoothingMode mode)
+    {
+        if (mode == Model.SmoothingMode.Median)
+        {
+            var sorted = vals.OrderBy(v => v).ToArray();
+            int m = sorted.Length / 2;
+            return sorted.Length % 2 == 1 ? sorted[m] : (sorted[m - 1] + sorted[m]) / 2;
+        }
+        return mode == Model.SmoothingMode.Average ? vals.Average() : vals[^1];
     }
 
     /// <summary>Die letzten <paramref name="count"/> Werte, ältester zuerst.</summary>

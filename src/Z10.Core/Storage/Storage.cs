@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Z10.Core.Model;
+using Z10.Core.Sensors;
 
 namespace Z10.Core.Storage;
 
@@ -24,6 +25,8 @@ public sealed class AppSettings
     public bool ReleaseOnExit { get; set; } = true;
     public bool RotationPaused { get; set; }
     public bool StartMinimized { get; set; } = true;
+    public bool RtssEnabled { get; set; } = true;
+    public List<CustomSensor> CustomSensors { get; set; } = new();
 }
 
 /// <summary>Speichert Applets als einzelne JSON-Dateien und die Einstellungen in settings.json.</summary>

@@ -170,6 +170,79 @@ var tests = new List<(string Name, Action Body)>
         Eq(EngineState.Conflict, e.State);
         True(dev.Reports.Last()[2] == 0xFE, "nicht freigegeben");
     }),
+    ("Formeln: Rechnen, Funktionen, fehlende Sensoren", () =>
+    {
+        double? L(string id) => id switch { "a" => 10, "b" => 4, "auto:cpu/Load/*" => 50, _ => null };
+        Eq(14.0, Formula.Parse("[a] + [b]").Evaluate(L));
+        Eq(18.0, Formula.Parse("([a] - 1) * 2").Evaluate(L));
+        Eq(1024.0, Formula.Parse("2^10").Evaluate(L));
+        Eq(-6.0, Formula.Parse("-[a] + [b]").Evaluate(L));
+        Eq(50.0, Formula.Parse("max([a], [auto:cpu/Load/*], [fehlt])").Evaluate(L));
+        Eq(7.0, Formula.Parse("avg([a], [b], [fehlt])").Evaluate(L));
+        Eq(null, Formula.Parse("[a] + [fehlt]").Evaluate(L));
+        Eq(null, Formula.Parse("[a] / 0").Evaluate(L));
+        Eq(3.3, Formula.Parse("round(3.333, 1)").Evaluate(L));
+        Eq(5.0, Formula.Parse("clamp([a], 0, 5)").Evaluate(L));
+        Seq2(new[] { "a", "b" }, Formula.Parse("[a]*[b]+[a]").SensorRefs);
+        foreach (var bad in new[] { "", "[a] +", "foo([a])", "([a]", "[a", "round(1,2,3)", "1,5 + 2" })
+            True(!Formula.TryParse(bad, out _, out var err) && err is not null, $"Fehler nicht erkannt: {bad}");
+    }),
+    ("Sensor-Hub: Quellen zusammenführen und eigene Sensoren berechnen", () =>
+    {
+        var cpu = new StaticSensorSource(new[] { new SensorInfo("/c/t", "CPU", "cpu", "CPU Package", "Temperature", "°C", 60) });
+        var gpu = new StaticSensorSource(new[] { new SensorInfo("/g/t", "GPU", "gpu", "GPU Core", "Temperature", "°C", 70) });
+        var hub = new SensorHub(cpu, gpu);
+        hub.SetCustomSensors(new[]
+        {
+            new CustomSensor { Key = "hot", Name = "Heißester Chip", Formula = "max([auto:cpu/Temperature/*], [/g/t])", Unit = "°C" },
+            new CustomSensor { Key = "diff", Formula = "[custom:hot] - [/c/t]" },
+            new CustomSensor { Key = "kaputt", Formula = "[a] +" },
+        });
+        hub.Update();
+        Eq(70.0, hub.GetValue("custom:hot"));
+        Eq(10.0, hub.GetValue("custom:diff"));
+        Eq(null, hub.GetValue("custom:kaputt"));
+        True(hub.CustomErrors.ContainsKey("kaputt"), "Formelfehler fehlt");
+        Eq(60.0, hub.GetValue(DefaultApplets.CpuTemp));
+        True(hub.Sensors.Any(s => s.Id == "custom:hot" && s.HardwareKind == "custom"), "eigener Sensor nicht gelistet");
+    }),
+    ("Glättung: Mittelwert und Median", () =>
+    {
+        var h = new SensorHistory();
+        foreach (var v in new double?[] { 10, 10, 100, 10, 10 }) h.Record("/s", v);
+        Eq(28.0, h.Smoothed("/s", SmoothingMode.Average, 5));
+        Eq(10.0, h.Smoothed("/s", SmoothingMode.Median, 5));
+        Eq(10.0, h.Smoothed("/s", SmoothingMode.Average, 2));
+        var src = new StaticSensorSource(new[] { new SensorInfo("/s", "x", "cpu", "S", "Load", "%", 10) });
+        var r = new AppletRenderer(PixelTextRasterizer.Instance, src, h);
+        Eq(28.0, r.ValueOf(new SensorWidget { Sensor = "/s", Smoothing = SmoothingMode.Average, SmoothingSeconds = 5 }));
+        Eq(10.0, r.ValueOf(new SensorWidget { Sensor = "/s" }));
+        Eq(10.0, r.ValueOf(new SensorWidget { Sensor = "/neu", Smoothing = SmoothingMode.Average }) ?? 10.0);
+    }),
+    ("RTSS: Shared Memory auslesen", () =>
+    {
+        const int entrySize = 0x1000, arrOffset = 0x100;
+        var mem = new byte[arrOffset + 3 * entrySize];
+        void U(int o, uint v) => System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(mem.AsSpan(o, 4), v);
+        U(0, RtssReader.Signature); U(4, 0x00020013); U(8, entrySize); U(12, arrOffset); U(16, 3);
+        void Entry(int i, uint pid, string name, uint t0, uint t1, uint frames, uint ftUs)
+        {
+            int e = arrOffset + i * entrySize;
+            U(e, pid);
+            System.Text.Encoding.ASCII.GetBytes(name).CopyTo(mem, e + 4);
+            U(e + 268, t0); U(e + 272, t1); U(e + 276, frames); U(e + 280, ftUs);
+        }
+        Entry(0, 100, @"C:\Games\alt.exe", 1000, 2000, 60, 16000);     // veraltet
+        Entry(1, 200, @"C:\Games\Cyberpunk2077.exe", 9000, 9500, 72, 6900);
+        Entry(2, 0, "leer", 0, 0, 0, 0);
+        var r = RtssReader.Parse(mem, 10_000);
+        True(r is not null, "nichts gefunden");
+        Eq("Cyberpunk2077", r!.App);
+        Eq(144.0, r.Fps);
+        Eq(6.9, r.FrametimeMs);
+        Eq(null, RtssReader.Parse(mem, 20_000));                          // alles veraltet
+        mem[0] = 0; Eq(null, RtssReader.Parse(mem, 10_000));              // falsche Signatur
+    }),
 };
 
 int failed = 0;
@@ -188,6 +261,12 @@ static void Eq<T>(T expected, T actual)
 }
 
 static void Seq(int[] expected, List<int> actual)
+{
+    if (!expected.SequenceEqual(actual))
+        throw new Exception($"erwartet [{string.Join(",", expected)}], war [{string.Join(",", actual)}]");
+}
+
+static void Seq2(string[] expected, IReadOnlyList<string> actual)
 {
     if (!expected.SequenceEqual(actual))
         throw new Exception($"erwartet [{string.Join(",", expected)}], war [{string.Join(",", actual)}]");

@@ -32,6 +32,8 @@ public partial class EditorView : UserControl
     private Widget? _dragging;
     private Point _dragOffset;
     private TextBox? _xBox, _yBox, _wBox, _hBox;
+    private TextBlock? _valueHint;
+    private ISensorWidget? _valueWidget;
 
     public EditorView(AppState state)
     {
@@ -45,7 +47,7 @@ public partial class EditorView : UserControl
         ApplyZoom();
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _timer.Tick += (_, _) => { _blink = !_blink; RenderPreview(); };
+        _timer.Tick += (_, _) => { _blink = !_blink; RenderPreview(); UpdateValueHint(); };
         _timer.Start();
 
         if (_state.Applets.Count > 0) Load(_state.Applets[0]);
@@ -70,6 +72,7 @@ public partial class EditorView : UserControl
         _layers.Clear();
         foreach (var w in _work.Widgets) _layers.Add(w);
         SelectPicker(applet.Id);
+        _state.Engine.TrackSensors(_work.SensorIds);
         SetDirty(false);
         Layers.SelectedIndex = _layers.Count > 0 ? 0 : -1;
         if (_layers.Count == 0) BuildProps(null);
@@ -112,6 +115,7 @@ public partial class EditorView : UserControl
 
     private void Changed()
     {
+        if (_work is not null) _state.Engine.TrackSensors(_work.SensorIds);
         SetDirty(true);
         RenderPreview();
     }
@@ -312,6 +316,8 @@ public partial class EditorView : UserControl
     {
         PropsPanel.Children.Clear();
         _xBox = _yBox = _wBox = _hBox = null;
+        _valueHint = null;
+        _valueWidget = null;
         if (w is null)
         {
             PropsTitle.Text = "EIGENSCHAFTEN";
@@ -482,12 +488,64 @@ public partial class EditorView : UserControl
             if (text == w.Sensor) return;
             w.Sensor = text;
             Changed();
+            UpdateValueHint();
         }
         cb.SelectionChanged += (_, _) => Dispatcher.BeginInvoke(Apply);
         cb.AddHandler(TextBoxBase.TextChangedEvent, new TextChangedEventHandler((_, _) => Apply()));
         PropsPanel.Children.Add(cb);
-        var value = _state.Sensors.GetValue(w.Sensor);
-        AddHint(value is double v ? $"Aktueller Wert: {v.ToString("0.##", CultureInfo.CurrentCulture)}" : "Kein Wert – Sensor nicht gefunden?");
+
+        // Aktueller Wert, wird jede Sekunde neu angezeigt
+        _valueWidget = w;
+        _valueHint = new TextBlock { Style = (Style)FindResource("Hint"), Margin = new Thickness(0, 4, 0, 0) };
+        PropsPanel.Children.Add(_valueHint);
+        UpdateValueHint();
+
+        // Glättung
+        AddLabel("Glättung (gegen stark schwankende Werte)");
+        var row = new Grid();
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var mode = new ComboBox { ItemsSource = new[] { "Aus", "Mittelwert", "Median (gegen Ausreißer)" }, SelectedIndex = (int)w.Smoothing };
+        var secs = new TextBox { Text = w.SmoothingSeconds.ToString(), Margin = new Thickness(6, 0, 0, 0), IsEnabled = w.Smoothing != SmoothingMode.None };
+        var unit = new TextBlock { Text = " Sekunden", VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)FindResource("MutedBrush") };
+        Grid.SetColumn(secs, 1);
+        Grid.SetColumn(unit, 2);
+        row.Children.Add(mode);
+        row.Children.Add(secs);
+        row.Children.Add(unit);
+        mode.SelectionChanged += (_, _) =>
+        {
+            w.Smoothing = (SmoothingMode)Math.Max(0, mode.SelectedIndex);
+            secs.IsEnabled = w.Smoothing != SmoothingMode.None;
+            Changed();
+            UpdateValueHint();
+        };
+        secs.TextChanged += (_, _) =>
+        {
+            if (int.TryParse(secs.Text, out var n) && n >= 2 && n <= 600) { w.SmoothingSeconds = n; Changed(); UpdateValueHint(); }
+        };
+        PropsPanel.Children.Add(row);
+        AddHint("Mittelwert bzw. Median der letzten Sekunden (1 Messung pro Sekunde). Warnwerte nutzen den geglätteten Wert.");
+    }
+
+    private void UpdateValueHint()
+    {
+        if (_valueHint is null || _valueWidget is not ISensorWidget w) return;
+        var info = _state.Sensors.Find(w.Sensor);
+        var raw = _state.Sensors.GetValue(w.Sensor);
+        if (raw is not double v)
+        {
+            _valueHint.Text = info is null ? "Kein Wert – Sensor nicht gefunden?" : $"{info.Hardware} · {info.Name}: zurzeit kein Wert";
+            return;
+        }
+        var c = CultureInfo.CurrentCulture;
+        string unit = info?.Unit is { Length: > 0 } u ? " " + u : "";
+        var text = $"Aktuell: {v.ToString("0.##", c)}{unit}";
+        if (w.Smoothing != SmoothingMode.None && _renderer.ValueOf(w) is double sm)
+            text += $" · geglättet: {sm.ToString("0.##", c)}{unit}";
+        if (info is not null) text += $"{Environment.NewLine}{info.Hardware} · {info.Name}";
+        _valueHint.Text = text;
     }
 
     private List<SensorChoice> SensorChoices()

@@ -11,6 +11,8 @@ Die Applets setzt du im Layout-Editor aus Bausteinen zusammen. Die Werte kommen 
 - **Layout-Editor** mit Pixelraster, Ziehen mit der Maus, Pfeiltasten und Ebenenliste
 - **Bausteine:** Text, Sensorwert (mit Format wie `{value/1000:0.0} GHz`), Balken, Verlauf, Uhr/Datum, 8×8-Symbol
 - **Schriften:** eingebaute 5×7-Pixelschrift in 4 Größen oder jede Windows-Schrift (ohne Kantenglättung gerendert)
+- **Glättung** pro Baustein (Mittelwert oder Median über N Sekunden) für stark schwankende Sensoren
+- **Weitere Datenquellen:** RTSS (Framerate, Frametime) und **eigene Sensoren** per Formel aus bestehenden Sensoren
 - **Warnwerte:** Ein Baustein wird invertiert oder blinkt, wenn ein Grenzwert überschritten ist. Das Applet kann dann sofort nach vorne springen.
 - **Auto-Sensoren** wie „CPU-Temperatur“, die auf Intel, AMD und NVIDIA ohne Anpassung funktionieren
 - Helligkeit und Kontrast (5 Stufen), Symbol im Infobereich, Autostart ohne UAC-Abfrage
@@ -48,6 +50,30 @@ auto:cpu/Temperature/CPU Package||Core (Tctl/Tdie)||*
 ```
 
 Art: `cpu`, `gpu`, `memory`, `motherboard`, `network`, `storage`. Die Namen werden der Reihe nach probiert, `*` nimmt den ersten Sensor des Typs.
+
+### Eigene Sensoren
+
+Unter *Gerät & Sensoren → Eigene Sensoren* legst du Sensoren an, die aus anderen berechnet werden. Im Layout-Editor heißen sie dann `custom:<Kurzname>`.
+
+```
+max([auto:cpu/Temperature/*], [auto:gpu/Temperature/*])          heißester Chip
+avg([/lpc/nct6798d/fan/0], [/lpc/nct6798d/fan/1])                 mittlere Lüfterdrehzahl
+[auto:memory/Data/Memory Used] / ([auto:memory/Data/Memory Used] + [auto:memory/Data/Memory Available]) * 100
+```
+
+Erlaubt sind `+ - * / ^`, Klammern, `min`, `max`, `avg`, `sum` (diese überspringen fehlende Werte), `abs`, `round(x, Stellen)` und `clamp(x, min, max)`. Als Dezimaltrenner gilt der Punkt.
+
+### RTSS (RivaTuner Statistics Server)
+
+Läuft RTSS, stehen `/rtss/fps` (Framerate) und `/rtss/frametime` (ms) des aktiven Spiels zur Verfügung. Abschalten kannst du das unter *Gerät & Sensoren*.
+
+### Glättung
+
+Sensorwert, Balken und Verlauf können über die letzten 2–600 Sekunden glätten:
+- **Mittelwert** beruhigt allgemeines Zittern.
+- **Median** filtert einzelne Ausreißer heraus.
+
+Warnwerte richten sich nach dem geglätteten Wert.
 
 ### Formate
 

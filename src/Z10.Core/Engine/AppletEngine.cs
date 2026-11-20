@@ -83,6 +83,15 @@ public sealed class AppletEngine : IDisposable
         }
     }
 
+    private string[] _extraSensors = Array.Empty<string>();
+
+    /// <summary>Zusätzliche Sensoren, deren Verlauf aufgezeichnet wird (z. B. aus dem Layout-Editor ohne Live-Anzeige).</summary>
+    public void TrackSensors(IEnumerable<string> ids)
+    {
+        var arr = ids.Where(i => !string.IsNullOrWhiteSpace(i)).Distinct().ToArray();
+        lock (_lock) _extraSensors = arr;
+    }
+
     /// <summary>Zeigt ein (noch nicht gespeichertes) Applet dauerhaft an, z. B. aus dem Layout-Editor. null = zurück zur Rotation.</summary>
     public void SetPreview(Applet? applet)
     {
@@ -230,9 +239,10 @@ public sealed class AppletEngine : IDisposable
         if (now < _nextSensorUpdate) return;
         _nextSensorUpdate = now.AddSeconds(1);
         _sensors.Update();
-        var graphSensors = _applets.Append(_previewOverride).Where(a => a is not null)
-            .SelectMany(a => a!.Widgets.OfType<GraphWidget>().Select(g => g.Sensor)).Distinct();
-        foreach (var id in graphSensors) _history.Record(id, _sensors.GetValue(id));
+        // Verlauf für alle verwendeten Sensoren aufzeichnen (Verlaufs-Bausteine und Glättung)
+        var used = _applets.Append(_previewOverride).Where(a => a is not null)
+            .SelectMany(a => a!.SensorIds).Concat(_extraSensors).Distinct();
+        foreach (var id in used) _history.Record(id, _sensors.GetValue(id));
     }
 
     private void HandleRotation(DateTime now)

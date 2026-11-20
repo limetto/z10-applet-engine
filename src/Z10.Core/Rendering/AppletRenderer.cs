@@ -20,6 +20,14 @@ public sealed class AppletRenderer
         _history = history;
     }
 
+    /// <summary>Wert eines Sensor-Bausteins, auf Wunsch geglättet (benötigt aufgezeichneten Verlauf).</summary>
+    public double? ValueOf(ISensorWidget w)
+    {
+        var raw = _sensors.GetValue(w.Sensor);
+        if (w.Smoothing == SmoothingMode.None || w.SmoothingSeconds <= 1) return raw;
+        return _history.Smoothed(w.Sensor, w.Smoothing, w.SmoothingSeconds) ?? raw;
+    }
+
     /// <param name="blinkPhase">Wechselt bei jedem Takt, steuert blinkende Warnungen.</param>
     public void Render(Applet applet, Framebuffer fb, DateTime now, bool blinkPhase = false)
     {
@@ -36,7 +44,7 @@ public sealed class AppletRenderer
                 fb.DrawRect(w.X, w.Y, Math.Max(1, w.W), Math.Max(1, w.H));
             }
 
-            bool warn = w.Warn is not null && w is ISensorWidget sw && w.Warn.IsTriggered(_sensors.GetValue(sw.Sensor));
+            bool warn = w.Warn is not null && w is ISensorWidget sw && w.Warn.IsTriggered(ValueOf(sw));
             bool invert = w.Invert ^ (warn && (!w.Warn!.Blink || blinkPhase));
             if (invert) fb.Invert(w.X, w.Y, w.W, w.H);
         }
@@ -44,7 +52,7 @@ public sealed class AppletRenderer
 
     /// <summary>Ist in diesem Applet gerade ein Warnwert aktiv?</summary>
     public bool HasWarning(Applet applet) =>
-        applet.Widgets.Any(w => w.Warn is not null && w is ISensorWidget sw && w.Warn.IsTriggered(_sensors.GetValue(sw.Sensor)));
+        applet.Widgets.Any(w => w.Warn is not null && w is ISensorWidget sw && w.Warn.IsTriggered(ValueOf(sw)));
 
     private void Draw(Widget w, Framebuffer fb, DateTime now)
     {
@@ -54,14 +62,14 @@ public sealed class AppletRenderer
                 DrawText(fb, t, t.Text, t.Style, t.Align);
                 break;
             case SensorWidget s:
-                DrawText(fb, s, ValueFormatter.Format(s.Format, _sensors.GetValue(s.Sensor), Culture), s.Style, s.Align);
+                DrawText(fb, s, ValueFormatter.Format(s.Format, ValueOf(s), Culture), s.Style, s.Align);
                 break;
             case ClockWidget c:
                 var text = SafeDate(now, c.Format);
                 DrawText(fb, c, c.UpperCase ? text.ToUpper(Culture) : text, c.Style, c.Align);
                 break;
             case BarWidget b:
-                DrawBar(fb, b, _sensors.GetValue(b.Sensor));
+                DrawBar(fb, b, ValueOf(b));
                 break;
             case GraphWidget g:
                 DrawGraph(fb, g);
@@ -117,6 +125,17 @@ public sealed class AppletRenderer
         if (innerW <= 1 || innerH <= 1) return;
 
         var values = _history.Last(g.Sensor, Math.Max(2, g.Seconds));
+        if (g.Smoothing != SmoothingMode.None && g.SmoothingSeconds > 1)
+        {
+            var raw = _history.Last(g.Sensor, Math.Max(2, g.Seconds) + g.SmoothingSeconds - 1);
+            int offset = raw.Length - values.Length;
+            values = values.Select((_, i) =>
+            {
+                var window = raw.Skip(Math.Max(0, offset + i - g.SmoothingSeconds + 1)).Take(Math.Min(g.SmoothingSeconds, offset + i + 1))
+                                .Where(v => v.HasValue).Select(v => v!.Value).ToArray();
+                return raw[offset + i] is null || window.Length == 0 ? (double?)null : SensorHistory.Smooth(window, g.Smoothing);
+            }).ToArray();
+        }
         var known = values.Where(v => v.HasValue).Select(v => v!.Value).ToArray();
         if (known.Length == 0) return;
         double min = g.Min ?? known.Min();

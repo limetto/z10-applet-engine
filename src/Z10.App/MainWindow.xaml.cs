@@ -4,6 +4,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Z10.Core.Engine;
 using Z10.Core.Model;
+using Z10.Core.Sensors;
 
 namespace Z10.App;
 
@@ -68,7 +69,9 @@ public partial class MainWindow : Window
         SetChip(DeviceChip, DeviceDot, DeviceText, ok ? 0 : warn ? 1 : 2);
 
         var err = _state.Sensors.Error;
-        SensorText.Text = err is null ? $"LibreHardwareMonitor · {_state.Sensors.Sensors.Count} Sensoren" : "Sensorfehler";
+        var game = _state.Rtss.ActiveApp is string app && _state.Sensors.GetValue(RtssSensorSource.FpsId) is double fps
+            ? $" · {app} {fps:0} FPS" : "";
+        SensorText.Text = (err is null ? $"{_state.Sensors.Sensors.Count} Sensoren" : "Sensorfehler") + game;
         SensorChip.ToolTip = err;
         SetChip(SensorChip, SensorDot, SensorText, err is null ? 0 : 2);
     }

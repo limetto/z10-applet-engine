@@ -42,9 +42,24 @@ public sealed class WarnRule
         value is double v && ((Above is double a && v >= a) || (Below is double b && v <= b));
 }
 
+public enum SmoothingMode { None, Average, Median }
+
 public interface ISensorWidget
 {
     string Sensor { get; set; }
+
+    /// <summary>Glättung über die letzten Sekunden (Mittelwert oder Median).</summary>
+    SmoothingMode Smoothing { get; set; }
+
+    int SmoothingSeconds { get; set; }
+}
+
+/// <summary>Gemeinsame Basis aller Bausteine, die einen Sensor anzeigen.</summary>
+public abstract class SensorBoundWidget : Widget, ISensorWidget
+{
+    public string Sensor { get; set; } = "";
+    public SmoothingMode Smoothing { get; set; }
+    public int SmoothingSeconds { get; set; } = 5;
 }
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
@@ -85,9 +100,8 @@ public sealed class TextWidget : Widget
     public override string KindName => "Text";
 }
 
-public sealed class SensorWidget : Widget, ISensorWidget
+public sealed class SensorWidget : SensorBoundWidget
 {
-    public string Sensor { get; set; } = "";
 
     /// <summary>Platzhalter: {value}, {value:0.0}, {value/1000:0.0}, {value*8:0}.</summary>
     public string Format { get; set; } = "{value:0}";
@@ -97,9 +111,8 @@ public sealed class SensorWidget : Widget, ISensorWidget
     public override string KindName => "Sensorwert";
 }
 
-public sealed class BarWidget : Widget, ISensorWidget
+public sealed class BarWidget : SensorBoundWidget
 {
-    public string Sensor { get; set; } = "";
     public double Min { get; set; }
     public double Max { get; set; } = 100;
     public bool Border { get; set; } = true;
@@ -107,9 +120,8 @@ public sealed class BarWidget : Widget, ISensorWidget
     public override string KindName => "Balken";
 }
 
-public sealed class GraphWidget : Widget, ISensorWidget
+public sealed class GraphWidget : SensorBoundWidget
 {
-    public string Sensor { get; set; } = "";
 
     /// <summary>Feste Skala; null = automatisch aus den angezeigten Werten.</summary>
     public double? Min { get; set; }

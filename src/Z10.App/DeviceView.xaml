@@ -51,15 +51,29 @@
           <CheckBox x:Name="ReleaseOnExitBox" Content="Beim Beenden Display an die Tastatur zurückgeben" Click="Behavior_Click" Margin="0,12,0,4"/>
           <CheckBox x:Name="AutoStartBox" Content="Mit Windows starten (über die Aufgabenplanung, ohne UAC-Abfrage)" Click="AutoStart_Click"/>
           <CheckBox Content="Applets mit E6 / E7 wechseln (folgt später)" IsEnabled="False" Foreground="{StaticResource MutedBrush}"/>
+
+          <TextBlock Text="RivaTuner Statistics Server" Style="{StaticResource H2}" Margin="0,20,0,4"/>
+          <CheckBox x:Name="RtssBox" Content="RTSS als Datenquelle (Framerate, Frametime)" Click="Rtss_Click"/>
+          <TextBlock x:Name="RtssStatus" Style="{StaticResource Hint}" Text="–"/>
+          <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0"
+                     Text="Sensoren: /rtss/fps und /rtss/frametime. RTSS muss laufen und das Spiel erkannt haben (z. B. mit eingeschaltetem OSD)."/>
         </StackPanel>
       </ScrollViewer>
     </Border>
 
-    <Border Grid.Column="2" Style="{StaticResource Card}">
+    <Grid Grid.Column="2">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="20"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+    <Border Style="{StaticResource Card}">
       <DockPanel>
-        <TextBlock DockPanel.Dock="Top" Text="Sensoren (LibreHardwareMonitor)" Style="{StaticResource H2}"/>
+        <TextBlock DockPanel.Dock="Top" Text="Sensoren" Style="{StaticResource H2}"/>
         <TextBlock DockPanel.Dock="Top" x:Name="SensorError" Foreground="#FFB3B5" TextWrapping="Wrap" Margin="0,0,0,8" Visibility="Collapsed"/>
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+          <Button DockPanel.Dock="Right" Content="In Formel einfügen" Click="InsertId_Click" Margin="8,0,0,0"
+                  ToolTip="Fügt den markierten Sensor in die Formel des eigenen Sensors ein"/>
           <Button DockPanel.Dock="Right" Content="Id kopieren" Click="CopyId_Click" Margin="8,0,0,0"/>
           <TextBox x:Name="FilterBox" TextChanged="Filter_Changed" ToolTip="Filter, z. B. temperature, load, fan"/>
         </DockPanel>
@@ -76,5 +90,65 @@
         </DataGrid>
       </DockPanel>
     </Border>
+
+    <Border Grid.Row="2" Style="{StaticResource Card}">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="260"/>
+          <ColumnDefinition Width="16"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" Text="Eigene Sensoren" Style="{StaticResource H2}"/>
+          <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
+            <Button Content="+ Neu" Click="CustomAdd_Click" Margin="0,0,6,0"/>
+            <Button Content="Löschen" Click="CustomDelete_Click"/>
+          </StackPanel>
+          <ListBox x:Name="CustomList" Height="150" SelectionChanged="CustomList_SelectionChanged">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel>
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding Id}" FontSize="11" FontFamily="Consolas" Foreground="{StaticResource MutedBrush}"/>
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+        <StackPanel Grid.Column="2" x:Name="CustomEditor">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="10"/>
+              <ColumnDefinition Width="140"/>
+              <ColumnDefinition Width="10"/>
+              <ColumnDefinition Width="80"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <TextBlock Text="Name" Style="{StaticResource Label}"/>
+              <TextBox x:Name="CustomName" TextChanged="Custom_Changed"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+              <TextBlock Text="Kurzname (Id)" Style="{StaticResource Label}"/>
+              <TextBox x:Name="CustomKey" TextChanged="Custom_Changed" FontFamily="Consolas"/>
+            </StackPanel>
+            <StackPanel Grid.Column="4">
+              <TextBlock Text="Einheit" Style="{StaticResource Label}"/>
+              <TextBox x:Name="CustomUnit" TextChanged="Custom_Changed"/>
+            </StackPanel>
+          </Grid>
+          <TextBlock Text="Formel" Style="{StaticResource Label}"/>
+          <TextBox x:Name="CustomFormula" TextChanged="Custom_Changed" FontFamily="Consolas" AcceptsReturn="False"/>
+          <TextBlock x:Name="CustomResult" Style="{StaticResource Hint}" Margin="0,6,0,0"/>
+          <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0"
+                     Text="Sensoren in [ ] schreiben, z. B. max([auto:cpu/Temperature/*], [auto:gpu/Temperature/*]). Erlaubt: + − * / ^ ( ), min, max, avg, sum, abs, round(x, Stellen), clamp(x, min, max). Dezimalpunkt verwenden. Eigene Sensoren dürfen weiter oben stehende eigene Sensoren verwenden."/>
+          <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+            <Button Style="{StaticResource AccentButton}" Content="Eigene Sensoren speichern" Click="CustomSave_Click"/>
+            <TextBlock x:Name="CustomSaved" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="{StaticResource MutedBrush}"/>
+          </StackPanel>
+        </StackPanel>
+      </Grid>
+    </Border>
+    </Grid>
   </Grid>
 </UserControl>

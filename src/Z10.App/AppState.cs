@@ -5,6 +5,7 @@ using System.Linq;
 using Z10.Core.Device;
 using Z10.Core.Engine;
 using Z10.Core.Model;
+using Z10.Core.Sensors;
 using Z10.Core.Storage;
 
 namespace Z10.App;
@@ -15,7 +16,9 @@ public sealed class AppState : IDisposable
     public AppStore Store { get; }
     public AppSettings Settings { get; }
     public ObservableCollection<Applet> Applets { get; }
-    public LhmSensorSource Sensors { get; }
+    public SensorHub Sensors { get; }
+    public LhmSensorSource Lhm { get; }
+    public RtssSensorSource Rtss { get; }
     public WpfTextRasterizer Text { get; } = new();
     public AppletEngine Engine { get; }
 
@@ -26,7 +29,10 @@ public sealed class AppState : IDisposable
         Store = new AppStore();
         Settings = Store.LoadSettings();
         Applets = new ObservableCollection<Applet>(Store.LoadApplets());
-        Sensors = new LhmSensorSource();
+        Lhm = new LhmSensorSource();
+        Rtss = new RtssSensorSource { Enabled = Settings.RtssEnabled };
+        Sensors = new SensorHub(Lhm, Rtss);
+        Sensors.SetCustomSensors(Settings.CustomSensors);
         Engine = new AppletEngine(Sensors, Text, () => Z10HidDevice.TryOpen(), UnleashDetector.IsRunning, Settings);
         Engine.SetApplets(Applets);
     }
@@ -83,6 +89,8 @@ public sealed class AppState : IDisposable
 
     public void SaveSettings()
     {
+        Rtss.Enabled = Settings.RtssEnabled;
+        Sensors.SetCustomSensors(Settings.CustomSensors);
         Store.SaveSettings(Settings);
         Engine.UpdateSettings(Settings);
     }
