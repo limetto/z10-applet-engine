@@ -16,6 +16,8 @@
     <Version>0.1.0</Version>
     <Product>Z10 Applet Engine</Product>
     <Description>Eigene Applets für das LCD der EVGA Z10</Description>
+    <!-- WPF steuert DPI über das Manifest; die WinForms-Empfehlung (nur für den Infobereich genutzt) passt hier nicht -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
