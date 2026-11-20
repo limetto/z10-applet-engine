@@ -1,0 +1,80 @@
+<UserControl x:Class="Z10.App.DeviceView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Grid Margin="20">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="420"/>
+      <ColumnDefinition Width="20"/>
+      <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+
+    <Border Style="{StaticResource Card}">
+      <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+          <TextBlock Text="Tastatur" Style="{StaticResource H2}"/>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition/><RowDefinition/><RowDefinition/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="Gerät" Foreground="{StaticResource MutedBrush}" Margin="0,2,16,2"/>
+            <TextBlock x:Name="DeviceInfo" Grid.Column="1" Text="–" Margin="0,2"/>
+            <TextBlock Grid.Row="1" Text="Status" Foreground="{StaticResource MutedBrush}" Margin="0,2,16,2"/>
+            <TextBlock x:Name="DeviceStatus" Grid.Row="1" Grid.Column="1" Text="–" TextWrapping="Wrap" Margin="0,2"/>
+            <TextBlock Grid.Row="2" Text="Schnittstelle" Foreground="{StaticResource MutedBrush}" Margin="0,2,16,2"/>
+            <TextBlock Grid.Row="2" Grid.Column="1" Text="3842:2601 · Usage Page 0xFF01" FontFamily="Consolas" Margin="0,2"/>
+          </Grid>
+          <Border Background="#2A2416" CornerRadius="8" Padding="12" Margin="0,12,0,0">
+            <TextBlock TextWrapping="Wrap" Foreground="{StaticResource WarnBrush}" FontSize="12"
+                       Text="Läuft EVGA Unleash, gibt die Engine das Display automatisch frei und übernimmt es wieder, sobald Unleash beendet ist."/>
+          </Border>
+
+          <TextBlock Text="Hintergrundbeleuchtung" Style="{StaticResource H2}" Margin="0,20,0,4"/>
+          <DockPanel>
+            <TextBlock x:Name="BrightnessValue" DockPanel.Dock="Right" Foreground="{StaticResource MutedBrush}" Margin="0,8,0,4"/>
+            <TextBlock Text="Helligkeit" Style="{StaticResource Label}"/>
+          </DockPanel>
+          <Slider x:Name="BrightnessSlider" Minimum="1" Maximum="5" TickFrequency="1" IsSnapToTickEnabled="True" TickPlacement="BottomRight" ValueChanged="Backlight_Changed"/>
+          <DockPanel>
+            <TextBlock x:Name="ContrastValue" DockPanel.Dock="Right" Foreground="{StaticResource MutedBrush}" Margin="0,8,0,4"/>
+            <TextBlock Text="Kontrast" Style="{StaticResource Label}"/>
+          </DockPanel>
+          <Slider x:Name="ContrastSlider" Minimum="1" Maximum="5" TickFrequency="1" IsSnapToTickEnabled="True" TickPlacement="BottomRight" ValueChanged="Backlight_Changed"/>
+          <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0" Text="Die Farbe des Displays schaltest du an der Tastatur mit FN um."/>
+
+          <TextBlock Text="Verhalten" Style="{StaticResource H2}" Margin="0,20,0,4"/>
+          <TextBlock Text="Pause zwischen Display-Seiten" Style="{StaticResource Label}"/>
+          <ComboBox x:Name="DelayBox" SelectionChanged="Delay_Changed"/>
+          <CheckBox x:Name="ReleaseOnExitBox" Content="Beim Beenden Display an die Tastatur zurückgeben" Click="Behavior_Click" Margin="0,12,0,4"/>
+          <CheckBox x:Name="AutoStartBox" Content="Mit Windows starten (über die Aufgabenplanung, ohne UAC-Abfrage)" Click="AutoStart_Click"/>
+          <CheckBox Content="Applets mit E6 / E7 wechseln (folgt später)" IsEnabled="False" Foreground="{StaticResource MutedBrush}"/>
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+
+    <Border Grid.Column="2" Style="{StaticResource Card}">
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Text="Sensoren (LibreHardwareMonitor)" Style="{StaticResource H2}"/>
+        <TextBlock DockPanel.Dock="Top" x:Name="SensorError" Foreground="#FFB3B5" TextWrapping="Wrap" Margin="0,0,0,8" Visibility="Collapsed"/>
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+          <Button DockPanel.Dock="Right" Content="Id kopieren" Click="CopyId_Click" Margin="8,0,0,0"/>
+          <TextBox x:Name="FilterBox" TextChanged="Filter_Changed" ToolTip="Filter, z. B. temperature, load, fan"/>
+        </DockPanel>
+        <TextBlock DockPanel.Dock="Bottom" Style="{StaticResource Hint}" Margin="0,8,0,0"
+                   Text="Die Id kannst du im Layout-Editor als Sensor eintragen. Werte aktualisieren sich jede Sekunde."/>
+        <DataGrid x:Name="SensorGrid">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Hardware" Binding="{Binding Hardware}" Width="2*"/>
+            <DataGridTextColumn Header="Sensor" Binding="{Binding Name}" Width="2*"/>
+            <DataGridTextColumn Header="Typ" Binding="{Binding Type}" Width="*"/>
+            <DataGridTextColumn Header="Wert" Binding="{Binding ValueText}" Width="*"/>
+            <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="2*"/>
+          </DataGrid.Columns>
+        </DataGrid>
+      </DockPanel>
+    </Border>
+  </Grid>
+</UserControl>

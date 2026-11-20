@@ -1,0 +1,105 @@
+<UserControl x:Class="Z10.App.EditorView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             PreviewKeyDown="Editor_PreviewKeyDown">
+  <DockPanel Margin="20">
+    <!-- Kopfzeile -->
+    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+      <Button DockPanel.Dock="Right" Style="{StaticResource AccentButton}" Content="Speichern" Click="Save_Click" Margin="8,0,0,0"/>
+      <Button DockPanel.Dock="Right" Content="Verwerfen" Click="Discard_Click" Margin="8,0,0,0"/>
+      <CheckBox DockPanel.Dock="Right" x:Name="LiveBox" Content="Live auf Tastatur" IsChecked="True" Click="Live_Click" Margin="16,0,0,0"/>
+      <StackPanel Orientation="Horizontal">
+        <TextBlock Text="Applet" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" Margin="0,0,8,0"/>
+        <ComboBox x:Name="AppletPicker" Width="240" DisplayMemberPath="Name" SelectionChanged="AppletPicker_SelectionChanged"/>
+        <TextBlock x:Name="DirtyMark" Text="  • ungespeichert" Foreground="{StaticResource WarnBrush}" VerticalAlignment="Center" Visibility="Collapsed"/>
+      </StackPanel>
+    </DockPanel>
+
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="230"/>
+        <ColumnDefinition Width="20"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="20"/>
+        <ColumnDefinition Width="320"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- Bausteine + Ebenen -->
+      <DockPanel>
+        <Border DockPanel.Dock="Top" Style="{StaticResource Card}">
+          <StackPanel x:Name="Palette">
+            <TextBlock Text="BAUSTEIN HINZUFÜGEN" Style="{StaticResource Label}" Margin="0,0,0,8"/>
+            <Button Content="Text" Tag="text" Click="AddWidget_Click" HorizontalContentAlignment="Left" Margin="0,0,0,6"/>
+            <Button Content="Sensorwert" Tag="sensor" Click="AddWidget_Click" Margin="0,0,0,6"/>
+            <Button Content="Balken" Tag="bar" Click="AddWidget_Click" Margin="0,0,0,6"/>
+            <Button Content="Verlauf" Tag="graph" Click="AddWidget_Click" Margin="0,0,0,6"/>
+            <Button Content="Uhr / Datum" Tag="clock" Click="AddWidget_Click" Margin="0,0,0,6"/>
+            <Button Content="Symbol" Tag="icon" Click="AddWidget_Click"/>
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Text="EBENEN (unten liegt vorne)" Style="{StaticResource Label}" Margin="0,0,0,8"/>
+            <WrapPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+              <Button Content="▲" Click="LayerUp_Click" MinWidth="36" Margin="0,0,4,4" ToolTip="Weiter nach hinten"/>
+              <Button Content="▼" Click="LayerDown_Click" MinWidth="36" Margin="0,0,4,4" ToolTip="Weiter nach vorne"/>
+              <Button Content="Kopie" Click="LayerDuplicate_Click" Margin="0,0,4,4"/>
+              <Button Content="Löschen" Click="LayerDelete_Click" Margin="0,0,4,4"/>
+            </WrapPanel>
+            <ListBox x:Name="Layers" SelectionChanged="Layers_SelectionChanged">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel>
+                    <TextBlock Text="{Binding Name}"/>
+                    <TextBlock Text="{Binding KindName}" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </DockPanel>
+        </Border>
+      </DockPanel>
+
+      <!-- Arbeitsfläche -->
+      <Border Grid.Column="2" Style="{StaticResource Card}" VerticalAlignment="Top">
+        <StackPanel>
+          <DockPanel Margin="0,0,0,12">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+              <Button Content="4×" Tag="4" Click="Zoom_Click" MinWidth="40" Margin="4,0,0,0"/>
+              <Button Content="5×" Tag="5" Click="Zoom_Click" MinWidth="40" Margin="4,0,0,0"/>
+              <Button Content="6×" Tag="6" Click="Zoom_Click" MinWidth="40" Margin="4,0,0,0"/>
+            </StackPanel>
+            <TextBlock Style="{StaticResource Hint}" VerticalAlignment="Center"
+                       Text="160 × 32 px · gestrichelt: Grenzen der 8-Pixel-Zeilen"/>
+          </DockPanel>
+          <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+            <Border Background="#0B0B0C" CornerRadius="8" Padding="16" HorizontalAlignment="Left">
+              <Grid x:Name="Surface" Background="Transparent" Focusable="True" Cursor="Cross"
+                    MouseLeftButtonDown="Surface_MouseDown" MouseMove="Surface_MouseMove" MouseLeftButtonUp="Surface_MouseUp">
+                <Image x:Name="EditorImage" Stretch="Fill" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                <Canvas x:Name="Overlay" IsHitTestVisible="False">
+                  <Line x:Name="Guide1" Stroke="#40FFB4B4" StrokeDashArray="4 4" StrokeThickness="1"/>
+                  <Line x:Name="Guide2" Stroke="#40FFB4B4" StrokeDashArray="4 4" StrokeThickness="1"/>
+                  <Line x:Name="Guide3" Stroke="#40FFB4B4" StrokeDashArray="4 4" StrokeThickness="1"/>
+                  <Rectangle x:Name="Selection" Stroke="#7CC4FF" StrokeThickness="2" Visibility="Collapsed"/>
+                </Canvas>
+              </Grid>
+            </Border>
+          </ScrollViewer>
+          <TextBlock Style="{StaticResource Hint}" Margin="0,12,0,0"
+                     Text="Baustein anklicken zum Auswählen und ziehen zum Verschieben. Pfeiltasten verschieben um 1 px, mit Umschalt ändern sie die Größe. Werte sind live aus LibreHardwareMonitor."/>
+        </StackPanel>
+      </Border>
+
+      <!-- Eigenschaften -->
+      <Border Grid.Column="4" Style="{StaticResource Card}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel>
+            <TextBlock x:Name="PropsTitle" Text="EIGENSCHAFTEN" Style="{StaticResource Label}" Margin="0,0,0,4"/>
+            <StackPanel x:Name="PropsPanel"/>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+  </DockPanel>
+</UserControl>
