@@ -11,6 +11,7 @@ Die Applets setzt du im Layout-Editor aus Bausteinen zusammen. Die Werte kommen 
 - **Layout-Editor** mit Pixelraster, Ziehen mit der Maus, Pfeiltasten und Ebenenliste
 - **Bausteine:** Text, Sensorwert (mit Format wie `{value/1000:0.0} GHz`), Balken, Verlauf, Uhr/Datum, 8×8-Symbol
 - **Schriften:** eingebaute 5×7-Pixelschrift in 4 Größen oder jede Windows-Schrift (ohne Kantenglättung gerendert)
+- **Überlagerung** pro Baustein: Normal, Invertieren (XOR, z. B. Schrift auf einem Balken bleibt lesbar) oder Ausstanzen
 - **Glättung** pro Baustein (Mittelwert oder Median über N Sekunden) für stark schwankende Sensoren
 - **Weitere Datenquellen:** RTSS (Framerate, Frametime), MSI Afterburner (alle Überwachungswerte), Lautstärke und Stummschaltung der Audiogeräte und **eigene Sensoren** per Formel aus bestehenden Sensoren
 - **Warnwerte:** Ein Baustein wird invertiert oder blinkt, wenn ein Grenzwert überschritten ist. Das Applet kann dann sofort nach vorne springen.

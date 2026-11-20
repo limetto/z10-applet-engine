@@ -34,15 +34,18 @@ public sealed class AppletRenderer
         fb.Clear();
         foreach (var w in applet.Widgets)
         {
+            // Normal direkt zeichnen, sonst auf eigener Ebene und dann pixelweise verrechnen
+            var target = w.Blend == BlendMode.Normal ? fb : new Framebuffer();
             try
             {
-                Draw(w, fb, now);
+                Draw(w, target, now);
             }
             catch (Exception)
             {
                 // Ein fehlerhafter Baustein soll nicht das ganze Applet verhindern.
-                fb.DrawRect(w.X, w.Y, Math.Max(1, w.W), Math.Max(1, w.H));
+                target.DrawRect(w.X, w.Y, Math.Max(1, w.W), Math.Max(1, w.H));
             }
+            if (!ReferenceEquals(target, fb)) fb.Combine(target, w.Blend);
 
             bool warn = w.Warn is not null && w is ISensorWidget sw && w.Warn.IsTriggered(ValueOf(sw));
             bool invert = w.Invert ^ (warn && (!w.Warn!.Blink || blinkPhase));

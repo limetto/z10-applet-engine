@@ -1,5 +1,16 @@
 namespace Z10.Core.Rendering;
 
+/// <summary>Wie ein Baustein mit dem bereits Gezeichneten darunter verrechnet wird.</summary>
+public enum BlendMode
+{
+    /// <summary>Pixel setzen (ODER).</summary>
+    Normal,
+    /// <summary>Darunterliegende Pixel umkehren (XOR): Schrift bleibt auf Balken lesbar.</summary>
+    Invert,
+    /// <summary>Pixel löschen: dunkle Schrift auf hellem Grund.</summary>
+    Erase,
+}
+
 /// <summary>Einfaches 1-Bit-Bild (an/aus pro Pixel).</summary>
 public class MonoBitmap
 {
@@ -82,6 +93,22 @@ public class MonoBitmap
                 if (tx < clipX || tx >= cx1) continue;
                 if (src[sx, sy]) this[tx, ty] = true;
             }
+        }
+    }
+
+    /// <summary>Verrechnet eine gleich große Ebene mit diesem Bild.</summary>
+    public void Combine(MonoBitmap layer, BlendMode mode)
+    {
+        if (layer.Width != Width || layer.Height != Height) throw new ArgumentException("Ebene hat eine andere Größe.");
+        for (int i = 0; i < Pixels.Length; i++)
+        {
+            if (!layer.Pixels[i]) continue;
+            Pixels[i] = mode switch
+            {
+                BlendMode.Invert => !Pixels[i],
+                BlendMode.Erase => false,
+                _ => true,
+            };
         }
     }
 

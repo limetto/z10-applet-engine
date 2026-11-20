@@ -378,7 +378,17 @@ public partial class EditorView : UserControl
         grid.Changed += Changed;
         PropsPanel.Children.Add(grid.Panel);
 
-        AddCheck("Invertiert darstellen", w.Invert, v => w.Invert = v);
+        AddLabel("Überlagerung mit Bausteinen darunter");
+        var blend = new ComboBox
+        {
+            ItemsSource = new[] { "Normal (Pixel setzen)", "Invertieren (XOR, z. B. Schrift auf Balken)", "Ausstanzen (Pixel löschen)" },
+            SelectedIndex = (int)w.Blend,
+        };
+        blend.SelectionChanged += (_, _) => { w.Blend = (BlendMode)Math.Max(0, blend.SelectedIndex); Changed(); };
+        PropsPanel.Children.Add(blend);
+        AddHint("Wirkt auf Bausteine, die in der Ebenenliste weiter oben stehen. Der Baustein muss also unter dem Balken stehen.");
+
+        AddCheck("Ganzen Bereich invertieren", w.Invert, v => w.Invert = v);
 
         if (w is ISensorWidget)
         {

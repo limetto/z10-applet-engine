@@ -328,6 +328,33 @@ var tests = new List<(string Name, Action Body)>
         Seq(new[] { 0, 1, 2, 3 }, dev.Pages);           // nach Aufwachen sofort komplett
         True(dev.Reports.Any(r => r[1] == 0x20), "Helligkeit nicht neu gesetzt");
     }),
+    ("Überlagerung: Schrift auf vollem Balken bleibt sichtbar", () =>
+    {
+        var src = new StaticSensorSource(new[] { new SensorInfo("/l", "x", "cpu", "L", "Load", "%", 100) });
+        var r = new AppletRenderer(PixelTextRasterizer.Instance, src, new SensorHistory());
+        Framebuffer Draw(BlendMode mode)
+        {
+            var a = new Applet { Widgets =
+            {
+                new BarWidget { X = 0, Y = 0, W = 40, H = 9, Sensor = "/l", Border = false },
+                new TextWidget { X = 1, Y = 1, W = 38, H = 7, Text = "I", Blend = mode },
+            } };
+            var fb = new Framebuffer();
+            r.Render(a, fb, DateTime.Now);
+            return fb;
+        }
+        // "I" (beschnitten auf 3 Spalten): mittlere Spalte x = 1 + 1 ist in Zeile 1..7 gesetzt
+        True(Draw(BlendMode.Normal)[2, 4], "Normal: Balken voll");
+        True(!Draw(BlendMode.Invert)[2, 4], "Invertieren: Buchstabe muss ausgespart sein");
+        True(Draw(BlendMode.Invert)[20, 4], "Invertieren: Balken daneben bleibt");
+        True(!Draw(BlendMode.Erase)[2, 4], "Ausstanzen: Buchstabe gelöscht");
+        // Invertieren über leerem Grund zeichnet die Schrift normal
+        var empty = new Framebuffer();
+        var layer = new Framebuffer();
+        layer.Blit(PixelFont.Default.Render("I"), 0, 0);
+        empty.Combine(layer, BlendMode.Invert);
+        True(empty.CountSet() > 0, "Invertieren auf leerem Grund");
+    }),
 };
 
 int failed = 0;

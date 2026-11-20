@@ -80,6 +80,9 @@ public abstract class Widget
     /// <summary>Bereich invertiert darstellen (hell auf dunkel ↔ dunkel auf hell).</summary>
     public bool Invert { get; set; }
 
+    /// <summary>Überlagerung mit darunterliegenden Bausteinen (Normal, Invertieren, Ausstanzen).</summary>
+    public BlendMode Blend { get; set; }
+
     public WarnRule? Warn { get; set; }
 
     [JsonIgnore]
