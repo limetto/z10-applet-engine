@@ -311,6 +311,23 @@ var tests = new List<(string Name, Action Body)>
         Eq("STUMM", ValueFormatter.Format("{value:STUMM;;laut}", 1, de));
         Eq("laut", ValueFormatter.Format("{value:STUMM;;laut}", 0, de));
     }),
+    ("Engine sendet regelmäßig und nach InvalidateDisplay alle Seiten neu", () =>
+    {
+        var dev = new FakeDevice();
+        var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => dev, () => false, new AppSettings());
+        e.SetApplets(new[] { new Applet { Name = "Statisch", DurationSeconds = 0, Widgets = { new TextWidget { Text = "FEST", W = 60 } } } });
+        var t = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        e.Tick(t);
+        Seq(new[] { 0, 1, 2, 3 }, dev.Pages);
+        dev.Pages.Clear(); e.Tick(t.AddSeconds(1.1));
+        Seq(new[] { 3 }, dev.Pages);                    // unverändert → nur Abschlussseite
+        dev.Pages.Clear(); e.Tick(t.AddSeconds(6));
+        Seq(new[] { 0, 1, 2, 3 }, dev.Pages);           // regelmäßige Vollauffrischung
+        dev.Pages.Clear(); dev.Reports.Clear();
+        e.InvalidateDisplay(); e.Tick(t.AddSeconds(6.2));
+        Seq(new[] { 0, 1, 2, 3 }, dev.Pages);           // nach Aufwachen sofort komplett
+        True(dev.Reports.Any(r => r[1] == 0x20), "Helligkeit nicht neu gesetzt");
+    }),
 };
 
 int failed = 0;

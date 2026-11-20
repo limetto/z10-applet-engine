@@ -32,6 +32,13 @@ public sealed class AppletEngine : IDisposable
     private Applet? _lastShown;
     private bool _blink;
     private bool _backlightDirty = true;
+    private DateTime _nextFullRefresh;
+
+    /// <summary>
+    /// Abstand, in dem alle Seiten neu gesendet werden, auch wenn sich nichts geändert hat. Fängt ab, dass die
+    /// Tastatur ihren Displayspeicher verliert (Ruhezustand, Neuverbindung), ohne dass die Engine es bemerkt.
+    /// </summary>
+    public TimeSpan FullRefreshInterval { get; set; } = TimeSpan.FromSeconds(5);
 
     public event Action<Framebuffer, Applet>? FrameRendered;
     public event Action? StatusChanged;
@@ -160,6 +167,18 @@ public sealed class AppletEngine : IDisposable
     /// <summary>true = Display an die Tastatur-Firmware zurückgegeben, die Engine sendet nichts mehr.</summary>
     public bool Suspended { get; private set; }
 
+    /// <summary>Nach Ruhezustand o. Ä.: alle Seiten und Helligkeit/Kontrast sofort neu senden.</summary>
+    public void InvalidateDisplay()
+    {
+        lock (_lock)
+        {
+            _display?.Invalidate();
+            _backlightDirty = true;
+            _nextRender = DateTime.MinValue;
+            _nextDeviceTry = DateTime.MinValue;
+        }
+    }
+
     public void SetSuspended(bool suspended)
     {
         lock (_lock)
@@ -272,6 +291,11 @@ public sealed class AppletEngine : IDisposable
         if (!ReferenceEquals(applet, _lastShown)) _nextRender = DateTime.MinValue;
         if (now < _nextRender) return;
         _nextRender = now.AddMilliseconds(Math.Max(100, applet.RefreshMs));
+        if (now >= _nextFullRefresh)
+        {
+            _display?.Invalidate();
+            _nextFullRefresh = now + FullRefreshInterval;
+        }
         _blink = !_blink;
 
         var fb = new Framebuffer();

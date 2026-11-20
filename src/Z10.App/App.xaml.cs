@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Windows;
+using Microsoft.Win32;
 using Forms = System.Windows.Forms;
 
 namespace Z10.App;
@@ -40,9 +41,23 @@ public partial class App : Application
         };
 
         CreateTray();
+        SystemEvents.PowerModeChanged += OnPowerModeChanged;
+        SystemEvents.SessionSwitch += OnSessionSwitch;
 
         bool minimized = e.Args.Contains("--minimized") || (State.Settings.StartMinimized && e.Args.Contains("--autostart"));
         if (!minimized) _window.Show();
+    }
+
+    // Nach Ruhezustand/Energiesparen kann die Tastatur ihren Displayspeicher verloren haben: alles neu senden.
+    private void OnPowerModeChanged(object? sender, PowerModeChangedEventArgs e)
+    {
+        if (e.Mode == PowerModes.Resume) State.Engine.InvalidateDisplay();
+    }
+
+    private void OnSessionSwitch(object? sender, SessionSwitchEventArgs e)
+    {
+        if (e.Reason is SessionSwitchReason.SessionUnlock or SessionSwitchReason.ConsoleConnect)
+            State.Engine.InvalidateDisplay();
     }
 
     private void CreateTray()
@@ -90,6 +105,8 @@ public partial class App : Application
     public void ExitApp()
     {
         _exiting = true;
+        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+        SystemEvents.SessionSwitch -= OnSessionSwitch;
         State.Engine.SetPreview(null);
         State.Dispose();                 // gibt das Display frei, wenn so eingestellt
         if (_tray is not null)
