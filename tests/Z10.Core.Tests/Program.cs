@@ -243,6 +243,25 @@ var tests = new List<(string Name, Action Body)>
         Eq(null, RtssReader.Parse(mem, 20_000));                          // alles veraltet
         mem[0] = 0; Eq(null, RtssReader.Parse(mem, 10_000));              // falsche Signatur
     }),
+    ("Doppelte Sensor-Ids werden eindeutig (NVIDIA load/3)", () =>
+    {
+        var src = new StaticSensorSource(new[]
+        {
+            new SensorInfo("/gpu-nvidia/0/load/3", "RTX", "gpu", "GPU Bus", "Load", "%", 5),
+            new SensorInfo("/gpu-nvidia/0/load/3", "RTX", "gpu", "GPU Memory", "Load", "%", 40),
+            new SensorInfo("/gpu-nvidia/0/load/0", "RTX", "gpu", "GPU Core", "Load", "%", 90),
+        });
+        Eq(5.0, src.GetValue("/gpu-nvidia/0/load/3#gpu-bus"));
+        Eq(40.0, src.GetValue("/gpu-nvidia/0/load/3#gpu-memory"));
+        Eq(5.0, src.GetValue("/gpu-nvidia/0/load/3"));          // alte Id: erster Sensor, wie bisher
+        Eq(90.0, src.GetValue("/gpu-nvidia/0/load/0"));
+        Eq(3, src.Sensors.Select(x => x.Id).Distinct().Count());
+        var hub = new SensorHub(src);
+        hub.SetCustomSensors(new[] { new CustomSensor { Key = "m", Formula = "[/gpu-nvidia/0/load/3#gpu-memory] * 2" } });
+        hub.Update();
+        Eq(80.0, hub.GetValue("custom:m"));
+        Eq(40.0, hub.GetValue("auto:gpu/Load/GPU Memory"));
+    }),
 };
 
 int failed = 0;

@@ -60,7 +60,9 @@ public sealed class SensorHub : SensorSourceBase
         }
         Error = errors.Count == 0 ? null : string.Join(" · ", errors);
 
+        merged = SensorSourceBase.MakeIdsUnique(merged, out var aliases).ToList();
         var byId = merged.GroupBy(s => s.Id).ToDictionary(g => g.Key, g => g.First());
+        foreach (var (plain, target) in aliases) byId.TryAdd(plain, target);
         var autoCache = new Dictionary<string, SensorInfo?>();
         var customValues = new Dictionary<string, double?>();
 

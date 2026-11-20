@@ -47,11 +47,48 @@ public abstract class SensorSourceBase : ISensorSource
             Error = ex.Message;
             return;
         }
+        fresh = MakeIdsUnique(fresh, out var aliases);
         lock (_lock)
         {
             _sensors = fresh;
             _byId = fresh.GroupBy(s => s.Id).ToDictionary(g => g.Key, g => g.First());
+            // Die ursprüngliche (doppelte) Id zeigt weiter auf den ersten Sensor, damit bestehende Applets funktionieren.
+            foreach (var (plain, target) in aliases) _byId.TryAdd(plain, target);
         }
+    }
+
+    /// <summary>
+    /// LibreHardwareMonitor vergibt manchmal dieselbe Id für mehrere Sensoren (z. B. NVIDIA "GPU Bus" und
+    /// "GPU Memory" als /gpu-nvidia/0/load/3). Solche Ids bekommen den Sensornamen angehängt:
+    /// /gpu-nvidia/0/load/3#gpu-bus und /gpu-nvidia/0/load/3#gpu-memory.
+    /// </summary>
+    public static IReadOnlyList<SensorInfo> MakeIdsUnique(IReadOnlyList<SensorInfo> sensors,
+        out List<(string Plain, SensorInfo Target)> aliases)
+    {
+        aliases = new();
+        var dupes = sensors.GroupBy(s => s.Id).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet();
+        if (dupes.Count == 0) return sensors;
+
+        var result = new List<SensorInfo>(sensors.Count);
+        var used = new HashSet<string>(sensors.Where(s => !dupes.Contains(s.Id)).Select(s => s.Id));
+        foreach (var s in sensors)
+        {
+            if (!dupes.Contains(s.Id)) { result.Add(s); continue; }
+            var baseId = s.Id + "#" + Slug(s.Name);
+            var id = baseId;
+            for (int n = 2; !used.Add(id); n++) id = $"{baseId}-{n}";
+            var renamed = s with { Id = id };
+            result.Add(renamed);
+            if (!aliases.Any(a => a.Plain == s.Id)) aliases.Add((s.Id, renamed));
+        }
+        return result;
+    }
+
+    private static string Slug(string name)
+    {
+        var chars = name.ToLowerInvariant().Select(c => char.IsLetterOrDigit(c) ? c : '-').ToArray();
+        var slug = string.Join("-", new string(chars).Split('-', StringSplitOptions.RemoveEmptyEntries));
+        return slug.Length == 0 ? "sensor" : slug;
     }
 
     protected abstract IReadOnlyList<SensorInfo> ReadSensors();
