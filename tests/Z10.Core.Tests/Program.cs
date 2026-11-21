@@ -436,7 +436,7 @@ var tests = new List<(string Name, Action Body)>
         MonoBitmap Dot(int x) { var b = new MonoBitmap(12, 5); b[x, 2] = true; return b; }
         lib.Save(ImageAsset.FromBitmaps("Mein Bild!", new[] { (Dot(0), 100), (Dot(5), 200), (Dot(11), 100) }));
         var loaded = new ImageLibrary(dir).Get("Mein-Bild")!;
-        True(loaded is not null, "nicht gespeichert");
+        if (loaded is null) throw new Exception("nicht gespeichert");
         Eq(12, loaded.Width); Eq(3, loaded.Frames.Count); True(loaded.IsAnimated, "nicht animiert");
         True(loaded.FrameAt(50)[0, 2], "Bild 1");
         True(loaded.FrameAt(150)[5, 2], "Bild 2");
