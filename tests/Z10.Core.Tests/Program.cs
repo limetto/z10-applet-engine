@@ -386,6 +386,17 @@ var tests = new List<(string Name, Action Body)>
         True(shown.Count(n => n == "Startanimation") >= frames.Count - 2, "Animation unvollständig");
         Eq("CPU", shown[^1]);
         True(shown.IndexOf("CPU") > shown.LastIndexOf("Startanimation"), "Applet vor Ende der Animation");
+
+        // Langsamer erster Takt (z. B. Treiberstart): Animation darf trotzdem nicht übersprungen werden
+        var dev2 = new FakeDevice();
+        var e2 = new AppletEngine(new SlowSource(), PixelTextRasterizer.Instance, () => dev2, () => false, new AppSettings());
+        e2.SetApplets(DefaultApplets.Create());
+        var shown2 = new List<string>();
+        e2.FrameRendered += (_, a) => shown2.Add(a.Name);
+        typeof(AppletEngine).GetField("_bootPending", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(e2, true);
+        e2.Tick(t);
+        e2.Tick(t.AddMilliseconds(100));
+        Eq("Startanimation", shown2[^1]);
     }),
 };
 
@@ -419,6 +430,11 @@ static void Seq2(string[] expected, IReadOnlyList<string> actual)
 static void True(bool cond, string msg)
 {
     if (!cond) throw new Exception(msg);
+}
+
+sealed class SlowSource : SensorSourceBase
+{
+    protected override IReadOnlyList<SensorInfo> ReadSensors() { Thread.Sleep(10); return Array.Empty<SensorInfo>(); }
 }
 
 sealed class FakeDevice : IZ10Device

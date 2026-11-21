@@ -23,6 +23,7 @@ public sealed class AppletEngine : IDisposable
     private List<Applet> _applets = new();
     private AppSettings _settings;
     private Thread? _thread;
+    private Thread? _sensorThread;
     private volatile bool _running;
 
     private Z10Display? _display;
@@ -154,6 +155,10 @@ public sealed class AppletEngine : IDisposable
         // STA, damit die App Systemschriften mit WPF rendern kann.
         if (OperatingSystem.IsWindows()) _thread.SetApartmentState(ApartmentState.STA);
         _thread.Start();
+        // Sensoren in eigenem Thread lesen: Das erste Öffnen von LibreHardwareMonitor dauert mehrere Sekunden
+        // und ein Durchlauf oft einige 100 ms – das soll die Anzeige (und die Startanimation) nicht ausbremsen.
+        _sensorThread = new Thread(SensorLoop) { IsBackground = true, Name = "Z10 Sensoren" };
+        _sensorThread.Start();
     }
 
     public void Stop()
@@ -161,6 +166,8 @@ public sealed class AppletEngine : IDisposable
         _running = false;
         _thread?.Join(TimeSpan.FromSeconds(3));
         _thread = null;
+        _sensorThread?.Join(TimeSpan.FromSeconds(3));
+        _sensorThread = null;
         lock (_lock)
         {
             if (_display is not null)
@@ -207,7 +214,7 @@ public sealed class AppletEngine : IDisposable
         lock (_lock)
         {
             HandleDevice(utcNow);
-            HandleSensors(utcNow);
+            if (_sensorThread is null) HandleSensors(utcNow);   // ohne Start() (Tests): direkt im Takt
             HandleRotation(utcNow);
             HandleRender(utcNow);
         }
@@ -273,10 +280,31 @@ public sealed class AppletEngine : IDisposable
     {
         if (now < _nextSensorUpdate) return;
         _nextSensorUpdate = now.AddSeconds(1);
+        UpdateSensors();
+    }
+
+    private void SensorLoop()
+    {
+        while (_running)
+        {
+            var start = DateTime.UtcNow;
+            try { UpdateSensors(); }
+            catch (Exception) { /* Fehler stehen in _sensors.Error */ }
+            var wait = TimeSpan.FromSeconds(1) - (DateTime.UtcNow - start);
+            Thread.Sleep(wait > TimeSpan.FromMilliseconds(50) ? wait : TimeSpan.FromMilliseconds(50));
+        }
+    }
+
+    private void UpdateSensors()
+    {
         _sensors.Update();
         // Verlauf für alle verwendeten Sensoren aufzeichnen (Verlaufs-Bausteine und Glättung)
-        var used = _applets.Append(_previewOverride).Where(a => a is not null)
-            .SelectMany(a => a!.SensorIds).Concat(_extraSensors).Distinct();
+        List<string> used;
+        lock (_lock)
+        {
+            used = _applets.Append(_previewOverride).Where(a => a is not null)
+                .SelectMany(a => a!.SensorIds).Concat(_extraSensors).Distinct().ToList();
+        }
         foreach (var id in used) _history.Record(id, _sensors.GetValue(id));
     }
 
@@ -302,6 +330,8 @@ public sealed class AppletEngine : IDisposable
     {
         if (_bootFrames is not null && _previewOverride is null)
         {
+            // Uhr der Animation startet erst mit dem ersten wirklich gezeigten Bild
+            if (_bootShown < 0) _bootStart = now;
             int idx = (int)((now - _bootStart).TotalMilliseconds / BootAnimation.FrameMs);
             if (idx < _bootFrames.Count)
             {
