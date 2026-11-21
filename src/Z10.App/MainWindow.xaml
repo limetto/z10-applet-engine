@@ -15,7 +15,7 @@
     <Border Background="{StaticResource HeaderBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1" Padding="20,10">
       <DockPanel LastChildFill="False">
         <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
-          <Image Source="app.ico" Width="22" Height="22" Margin="0,0,10,0"/>
+          <Image Source="logo.png" Width="24" Height="24" Margin="0,0,10,0" RenderOptions.BitmapScalingMode="HighQuality"/>
           <TextBlock Text="Z10 Applet Engine" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
         </StackPanel>
         <Button x:Name="ReleaseButton" DockPanel.Dock="Right" Content="Display freigeben" Click="Release_Click" Margin="12,0,0,0"

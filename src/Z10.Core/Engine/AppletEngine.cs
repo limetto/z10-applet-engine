@@ -33,6 +33,13 @@ public sealed class AppletEngine : IDisposable
     private bool _blink;
     private bool _backlightDirty = true;
     private DateTime _nextFullRefresh;
+    private bool _bootPending;
+    private IReadOnlyList<Framebuffer>? _bootFrames;
+    private DateTime _bootStart;
+    private int _bootShown = -1;
+
+    /// <summary>Pseudo-Applet, unter dem die Startanimation gemeldet wird.</summary>
+    public static readonly Applet BootApplet = new() { Id = "boot", Name = "Startanimation" };
 
     /// <summary>
     /// Abstand, in dem alle Seiten neu gesendet werden, auch wenn sich nichts geändert hat. Fängt ab, dass die
@@ -142,6 +149,7 @@ public sealed class AppletEngine : IDisposable
     {
         if (_running) return;
         _running = true;
+        _bootPending = _settings.BootAnimation;
         _thread = new Thread(Loop) { IsBackground = true, Name = "Z10 Engine" };
         // STA, damit die App Systemschriften mit WPF rendern kann.
         if (OperatingSystem.IsWindows()) _thread.SetApartmentState(ApartmentState.STA);
@@ -244,6 +252,14 @@ public sealed class AppletEngine : IDisposable
             _nextRender = DateTime.MinValue;
             DeviceInfo = dev.Description;
             SetStatus(EngineState.Connected, "Z10 verbunden");
+            if (_bootPending)
+            {
+                // Startanimation einmal pro Programmstart, sobald die Tastatur da ist
+                _bootPending = false;
+                _bootFrames = BootAnimation.Frames();
+                _bootStart = now;
+                _bootShown = -1;
+            }
         }
 
         if (_display is not null && _backlightDirty)
@@ -284,6 +300,24 @@ public sealed class AppletEngine : IDisposable
 
     private void HandleRender(DateTime now)
     {
+        if (_bootFrames is not null && _previewOverride is null)
+        {
+            int idx = (int)((now - _bootStart).TotalMilliseconds / BootAnimation.FrameMs);
+            if (idx < _bootFrames.Count)
+            {
+                if (idx != _bootShown)
+                {
+                    _bootShown = idx;
+                    var frame = _bootFrames[idx];
+                    FrameRendered?.Invoke(frame, BootApplet);
+                    if (_display is not null && !Suspended) TryDevice(() => _display.Show(frame));
+                }
+                return;
+            }
+            _bootFrames = null;
+            _nextRender = DateTime.MinValue;
+        }
+
         var applet = _previewOverride
                      ?? _applets.FirstOrDefault(a => a.Enabled && a.ShowOnWarning && _renderer.HasWarning(a))
                      ?? _applets.FirstOrDefault(a => a.Id == _currentId);

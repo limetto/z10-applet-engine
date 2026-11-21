@@ -1,4 +1,8 @@
+<p align="center"><img src="docs/logo.png" width="128" alt="Logo der Z10 Applet Engine"></p>
+
 # Z10 Applet Engine
+
+<p align="center"><img src="docs/boot.gif" width="640" alt="Startanimation auf dem Display der Z10"></p>
 
 Eigene Applets für das 160 × 32-Pixel-LCD der **EVGA Z10** (die ursprüngliche Variante ohne RGB, USB `3842:2601`).
 Die Applets setzt du im Layout-Editor aus Bausteinen zusammen. Die Werte kommen aus **LibreHardwareMonitor**.
@@ -17,6 +21,7 @@ Die Applets setzt du im Layout-Editor aus Bausteinen zusammen. Die Werte kommen 
 - **Warnwerte:** Ein Baustein wird invertiert oder blinkt, wenn ein Grenzwert überschritten ist. Das Applet kann dann sofort nach vorne springen.
 - **Auto-Sensoren** wie „CPU-Temperatur“, die auf Intel, AMD und NVIDIA ohne Anpassung funktionieren
 - Helligkeit und Kontrast (5 Stufen), Symbol im Infobereich, Autostart ohne UAC-Abfrage
+- Startanimation mit Logo auf der Tastatur und im Startfenster (abschaltbar)
 - Läuft **EVGA Unleash**, gibt die Engine das Display automatisch frei
 
 ## Installation

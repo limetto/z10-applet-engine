@@ -49,6 +49,7 @@
           <TextBlock Text="Pause zwischen Display-Seiten" Style="{StaticResource Label}"/>
           <ComboBox x:Name="DelayBox" SelectionChanged="Delay_Changed"/>
           <CheckBox x:Name="ReleaseOnExitBox" Content="Beim Beenden Display an die Tastatur zurückgeben" Click="Behavior_Click" Margin="0,12,0,4"/>
+          <CheckBox x:Name="BootBox" Content="Startanimation (auf der Tastatur und im Startfenster)" Click="Behavior_Click"/>
           <CheckBox x:Name="AutoStartBox" Content="Mit Windows starten (über die Aufgabenplanung, ohne UAC-Abfrage)" Click="AutoStart_Click"/>
           <CheckBox Content="Applets mit E6 / E7 wechseln (folgt später)" IsEnabled="False" Foreground="{StaticResource MutedBrush}"/>
 

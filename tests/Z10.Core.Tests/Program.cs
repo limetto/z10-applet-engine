@@ -9,6 +9,19 @@ using Z10.Core.Storage;
 
 // Kleiner Testlauf ohne externe Pakete. Rückgabewert != 0 bei Fehlern (für CI).
 // "--dump <Ordner>" schreibt zusätzlich alle Vorlagen als PBM-Bilder (Vorschau ohne Tastatur).
+if (args.Length == 2 && args[0] == "--boot")
+{
+    Directory.CreateDirectory(args[1]);
+    int i = 0;
+    foreach (var fb in BootAnimation.Frames())
+    {
+        var sb = new System.Text.StringBuilder($"P1\n{fb.Width} {fb.Height}\n");
+        for (int y = 0; y < fb.Height; y++)
+            sb.AppendLine(string.Join(" ", Enumerable.Range(0, fb.Width).Select(x => fb[x, y] ? "1" : "0")));
+        File.WriteAllText(Path.Combine(args[1], $"f{i++:000}.pbm"), sb.ToString());
+    }
+    return 0;
+}
 if (args.Length == 2 && args[0] == "--dump")
 {
     Directory.CreateDirectory(args[1]);
@@ -354,6 +367,25 @@ var tests = new List<(string Name, Action Body)>
         layer.Blit(PixelFont.Default.Render("I"), 0, 0);
         empty.Combine(layer, BlendMode.Invert);
         True(empty.CountSet() > 0, "Invertieren auf leerem Grund");
+    }),
+    ("Startanimation: läuft einmal nach dem Verbinden, danach Applets", () =>
+    {
+        var frames = BootAnimation.Frames();
+        True(frames.Count is > 30 and < 80, "unerwartete Länge");
+        True(frames[^1].CountSet() > 200, "Logo zu leer");
+        True(frames[0].CountSet() < frames[^1].CountSet(), "Animation baut nicht auf");
+
+        var dev = new FakeDevice();
+        var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => dev, () => false, new AppSettings());
+        e.SetApplets(DefaultApplets.Create());
+        var shown = new List<string>();
+        e.FrameRendered += (_, a) => shown.Add(a.Name);
+        typeof(AppletEngine).GetField("_bootPending", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(e, true);
+        var t = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        for (int ms = 0; ms <= frames.Count * BootAnimation.FrameMs + 200; ms += 50) e.Tick(t.AddMilliseconds(ms));
+        True(shown.Count(n => n == "Startanimation") >= frames.Count - 2, "Animation unvollständig");
+        Eq("CPU", shown[^1]);
+        True(shown.IndexOf("CPU") > shown.LastIndexOf("Startanimation"), "Applet vor Ende der Animation");
     }),
 };
 

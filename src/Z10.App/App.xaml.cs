@@ -45,7 +45,17 @@ public partial class App : Application
         SystemEvents.SessionSwitch += OnSessionSwitch;
 
         bool minimized = e.Args.Contains("--minimized") || (State.Settings.StartMinimized && e.Args.Contains("--autostart"));
-        if (!minimized) _window.Show();
+        if (minimized) return;
+        if (State.Settings.BootAnimation)
+        {
+            var splash = new SplashWindow();
+            splash.Finished += () => _window?.Show();
+            splash.Show();
+        }
+        else
+        {
+            _window.Show();
+        }
     }
 
     // Nach Ruhezustand/Energiesparen kann die Tastatur ihren Displayspeicher verloren haben: alles neu senden.

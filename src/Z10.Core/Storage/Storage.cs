@@ -25,6 +25,8 @@ public sealed class AppSettings
     public bool ReleaseOnExit { get; set; } = true;
     public bool RotationPaused { get; set; }
     public bool StartMinimized { get; set; } = true;
+    /// <summary>Startanimation auf der Tastatur und im Startfenster.</summary>
+    public bool BootAnimation { get; set; } = true;
     public bool RtssEnabled { get; set; } = true;
     public bool AfterburnerEnabled { get; set; } = true;
     public bool AudioEnabled { get; set; } = true;

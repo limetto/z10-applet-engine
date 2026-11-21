@@ -30,6 +30,7 @@ public partial class DeviceView : UserControl
         ContrastSlider.Value = s.Contrast;
         DelayBox.SelectedIndex = Math.Max(0, Array.IndexOf(Delays, s.PageDelayMs));
         ReleaseOnExitBox.IsChecked = s.ReleaseOnExit;
+        BootBox.IsChecked = s.BootAnimation;
         AutoStartBox.IsChecked = AutoStart.IsEnabled();
         RtssBox.IsChecked = s.RtssEnabled;
         AfterburnerBox.IsChecked = s.AfterburnerEnabled;
@@ -119,6 +120,7 @@ public partial class DeviceView : UserControl
     private void Behavior_Click(object sender, RoutedEventArgs e)
     {
         _state.Settings.ReleaseOnExit = ReleaseOnExitBox.IsChecked == true;
+        _state.Settings.BootAnimation = BootBox.IsChecked == true;
         _state.SaveSettings();
     }
 
