@@ -13,7 +13,8 @@ Die Applets setzt du im Layout-Editor aus Bausteinen zusammen. Die Werte kommen 
 
 - **Applet-Rotation** mit eigener Anzeigedauer und Aktualisierung pro Applet; Rotation anhalten, vor und zurück blättern
 - **Layout-Editor** mit Pixelraster, Ziehen mit der Maus, Pfeiltasten und Ebenenliste
-- **Bausteine:** Text, Sensorwert (mit Format wie `{value/1000:0.0} GHz`), Balken, Verlauf, Uhr/Datum, 8×8-Symbol
+- **Bausteine:** Text, Sensorwert (mit Format wie `{value/1000:0.0} GHz`), Balken, Verlauf, Uhr/Datum, Symbol
+- **Symbole:** über 60 eingebaute Pixel-Symbole (8 × 8 und 16 × 16) mit Vorschau in der Auswahl, dazu **eigene Grafiken und animierte GIFs** per Import (Schwellwert, Rasterung, Invertieren, Größe)
 - **Schriften:** eingebaute 5×7-Pixelschrift in 4 Größen oder jede Windows-Schrift (ohne Kantenglättung gerendert)
 - **Überlagerung** pro Baustein: Normal, Invertieren (XOR, z. B. Schrift auf einem Balken bleibt lesbar) oder Ausstanzen
 - **Glättung** pro Baustein (Mittelwert oder Median über N Sekunden) für stark schwankende Sensoren
@@ -98,6 +99,16 @@ Sensorwert, Balken und Verlauf können über die letzten 2–600 Sekunden glätt
 - **Median** filtert einzelne Ausreißer heraus.
 
 Warnwerte richten sich nach dem geglätteten Wert.
+
+### Eigene Grafiken
+
+Im Layout-Editor beim Symbol-Baustein auf **„Grafik importieren …“** klicken. Möglich sind PNG, JPG, BMP und GIF, auch animiert. Im Dialog stellst du ein:
+- die Zielgröße (bis 160 × 32),
+- den Schwellwert,
+- Rasterung (für Fotos und Verläufe),
+- Invertieren (für dunkle Motive auf hellem Grund).
+
+Die Vorschau zeigt das Ergebnis in Displaygröße, Animationen laufen mit. Gespeichert wird in `%APPDATA%\Z10AppletEngine\images\`, im Applet heißt die Grafik dann `img:<Name>`. Animationen laufen auf der Tastatur mit bis zu etwa 10 Bildern pro Sekunde.
 
 ### Formate
 

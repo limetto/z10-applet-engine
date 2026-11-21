@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -11,8 +12,19 @@ public static class LcdImage
     private const uint Off = 0xFF4A0B0D;   // dunkles Rot
     private const uint On = 0xFFFF4B4F;    // leuchtendes Rot
 
-    public static WriteableBitmap Create() =>
-        new(Framebuffer.DefaultWidth, Framebuffer.DefaultHeight, 96, 96, PixelFormats.Bgra32, null);
+    public static WriteableBitmap Create() => Create(Framebuffer.DefaultWidth, Framebuffer.DefaultHeight);
+
+    public static WriteableBitmap Create(int width, int height) =>
+        new(Math.Max(1, width), Math.Max(1, height), 96, 96, PixelFormats.Bgra32, null);
+
+    /// <summary>Einzelnes Bild (z. B. Symbolvorschau) als fertige, eingefrorene Grafik.</summary>
+    public static BitmapSource ToImage(MonoBitmap bmp)
+    {
+        var wb = Create(bmp.Width, bmp.Height);
+        if (bmp.Width > 0 && bmp.Height > 0) Update(wb, bmp);
+        wb.Freeze();
+        return wb;
+    }
 
     public static void Update(WriteableBitmap target, MonoBitmap fb)
     {

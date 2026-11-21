@@ -13,6 +13,15 @@ public sealed class AppletRenderer
 
     public CultureInfo Culture { get; set; } = CultureInfo.CurrentCulture;
 
+    /// <summary>Importierte Grafiken für Symbol-Bausteine ("img:Name").</summary>
+    public ImageLibrary? Images { get; set; }
+
+    /// <summary>Enthält das Applet animierte Grafiken (dann häufiger neu zeichnen)?</summary>
+    public bool IsAnimated(Applet applet) =>
+        Images is not null && applet.Widgets.OfType<IconWidget>().Any(i =>
+            i.Icon.StartsWith(Icons.ImagePrefix, StringComparison.OrdinalIgnoreCase)
+            && Images.Get(i.Icon[Icons.ImagePrefix.Length..])?.IsAnimated == true);
+
     public AppletRenderer(ITextRasterizer text, ISensorSource sensors, SensorHistory history)
     {
         _text = text;
@@ -78,7 +87,7 @@ public sealed class AppletRenderer
                 DrawGraph(fb, g);
                 break;
             case IconWidget i:
-                fb.Blit(Icons.Parse(i.Icon), i.X, i.Y, i.X, i.Y, i.W, i.H);
+                fb.Blit(Icons.Get(i.Icon, Images, new DateTimeOffset(now).ToUnixTimeMilliseconds()), i.X, i.Y, i.X, i.Y, i.W, i.H);
                 break;
         }
     }

@@ -331,7 +331,7 @@ var tests = new List<(string Name, Action Body)>
         e.SetApplets(new[] { new Applet { Name = "Statisch", DurationSeconds = 0, Widgets = { new TextWidget { Text = "FEST", W = 60 } } } });
         var t = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         e.Tick(t);
-        Seq(new[] { 0, 1, 2, 3 }, dev.Pages);
+        Seq(new[] { 0, 1, 2, 3, 0, 1, 2, 3 }, dev.Pages);    // erstes Bild: schnell + nochmal normal
         dev.Pages.Clear(); e.Tick(t.AddSeconds(1.1));
         Seq(new[] { 3 }, dev.Pages);                    // unverändert → nur Abschlussseite
         dev.Pages.Clear(); e.Tick(t.AddSeconds(6));
@@ -397,6 +397,61 @@ var tests = new List<(string Name, Action Body)>
         e2.Tick(t);
         e2.Tick(t.AddMilliseconds(100));
         Eq("Startanimation", shown2[^1]);
+    }),
+    ("Freigeben leert vorher den Speicher der Tastatur", () =>
+    {
+        var dev = new FakeDevice();
+        var d = new Z10Display(dev);
+        var fb = new Framebuffer(); fb.FillRect(0, 0, 160, 32);
+        d.Show(fb);
+        dev.Reports.Clear();
+        d.Release();
+        var pages = dev.Reports.Where(r => r[1] == 0x21 && r[2] < 4).ToList();
+        Eq(4, pages.Count);
+        True(pages.All(r => r.Skip(8).Take(160).All(b => b == 0)), "nicht leer");
+        Eq(0xFE, dev.Reports.Last()[2]);
+    }),
+    ("Symbole: Bibliothek vollständig, Hex-Zeilen in 8 und 16 px", () =>
+    {
+        foreach (var (cat, names) in Icons.Categories)
+            foreach (var n in names)
+            {
+                True(Icons.IsBuiltIn(n), $"{cat}: {n} fehlt");
+                var b = Icons.Get(n);
+                True((b.Width == 8 && b.Height == 8) || (b.Width == 16 && b.Height == 16), $"{n}: {b.Width}x{b.Height}");
+                True(b.CountSet() > 4, $"{n} ist leer");
+            }
+        True(Icons.Categories.Sum(c => c.Names.Length) >= 50, "zu wenige Symbole");
+        var heart = Icons.Get("18 3C 7E FF FF 7E 3C 18");
+        Eq(8, heart.Width); True(heart[3, 0] && heart[4, 0] && !heart[2, 0], "Hex 8 px falsch");
+        var wide = Icons.Get("8001 FFFF");
+        Eq(16, wide.Width); True(wide[0, 0] && wide[15, 0] && !wide[1, 0] && wide[7, 1], "Hex 16 px falsch");
+        Eq(Icons.Get("cpu").CountSet(), Icons.Parse("cpu").CountSet());
+        True(Icons.Get("img:fehlt").Width == 8, "Ersatzsymbol fehlt");
+    }),
+    ("Importierte Grafiken: speichern, laden, Animation nach Zeit", () =>
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "z10img-" + Guid.NewGuid().ToString("N"));
+        var lib = new ImageLibrary(dir);
+        MonoBitmap Dot(int x) { var b = new MonoBitmap(12, 5); b[x, 2] = true; return b; }
+        lib.Save(ImageAsset.FromBitmaps("Mein Bild!", new[] { (Dot(0), 100), (Dot(5), 200), (Dot(11), 100) }));
+        var loaded = new ImageLibrary(dir).Get("Mein-Bild")!;
+        True(loaded is not null, "nicht gespeichert");
+        Eq(12, loaded.Width); Eq(3, loaded.Frames.Count); True(loaded.IsAnimated, "nicht animiert");
+        True(loaded.FrameAt(50)[0, 2], "Bild 1");
+        True(loaded.FrameAt(150)[5, 2], "Bild 2");
+        True(loaded.FrameAt(350)[11, 2], "Bild 3");
+        True(loaded.FrameAt(450)[0, 2], "Schleife");
+
+        var r = new AppletRenderer(PixelTextRasterizer.Instance, StaticSensorSource.Demo(), new SensorHistory()) { Images = lib };
+        var a = new Applet { Widgets = { new IconWidget { X = 10, Y = 0, W = 12, H = 5, Icon = "img:Mein-Bild" } } };
+        True(r.IsAnimated(a), "Animation nicht erkannt");
+        var t0 = DateTimeOffset.FromUnixTimeMilliseconds(400_000 + 150).LocalDateTime;   // 400000 ist Vielfaches von 400 ms
+        var fb = new Framebuffer(); r.Render(a, fb, t0);
+        True(fb[15, 2] && !fb[10, 2], "falsches Animationsbild");
+        lib.Delete("Mein-Bild");
+        Eq(null, new ImageLibrary(dir).Get("Mein-Bild"));
+        Directory.Delete(dir, true);
     }),
 };
 

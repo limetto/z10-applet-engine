@@ -29,6 +29,20 @@ public sealed class Z10Display
     /// <summary>Erzwingt beim nächsten Show() das Senden aller Seiten.</summary>
     public void Invalidate() => _last = null;
 
+    /// <summary>
+    /// Erstes Bild nach dem Verbinden: ohne Pause zwischen den Seiten senden, damit der alte Inhalt im
+    /// Speicher der Tastatur möglichst kurz sichtbar ist, danach normal (falls dabei Seiten verloren gingen).
+    /// </summary>
+    public void ShowFirst(Framebuffer fb)
+    {
+        var delay = _device.PageDelay;
+        _device.PageDelay = TimeSpan.Zero;
+        try { _last = null; Show(fb); }
+        finally { _device.PageDelay = delay; }
+        _last = null;
+        Show(fb);
+    }
+
     public void Show(Framebuffer fb)
     {
         var pages = fb.ToPages();
@@ -46,8 +60,13 @@ public sealed class Z10Display
         _last = pages;
     }
 
+    /// <summary>
+    /// Gibt das Display an die Firmware zurück. Vorher wird der Speicher geleert: Die Tastatur behält den
+    /// letzten Inhalt und zeigt ihn beim nächsten Übernehmen kurz an – so ist das dann ein leeres Bild.
+    /// </summary>
     public void Release()
     {
+        try { _last = null; Show(new Framebuffer()); } catch (IOException) { }
         _device.SendFeature(Z10Protocol.BuildReleaseReport());
         _last = null;
     }

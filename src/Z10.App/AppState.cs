@@ -5,6 +5,7 @@ using System.Linq;
 using Z10.Core.Device;
 using Z10.Core.Engine;
 using Z10.Core.Model;
+using Z10.Core.Rendering;
 using Z10.Core.Sensors;
 using Z10.Core.Storage;
 
@@ -23,6 +24,7 @@ public sealed class AppState : IDisposable
     public AudioSensorSource Audio { get; }
     public WpfTextRasterizer Text { get; } = new();
     public AppletEngine Engine { get; }
+    public ImageLibrary Images { get; }
 
     public event Action? AppletsChanged;
 
@@ -37,7 +39,9 @@ public sealed class AppState : IDisposable
         Audio = new AudioSensorSource { Enabled = Settings.AudioEnabled };
         Sensors = new SensorHub(Lhm, Rtss, Afterburner, Audio);
         Sensors.SetCustomSensors(Settings.CustomSensors);
+        Images = new ImageLibrary(System.IO.Path.Combine(Store.Root, "images"));
         Engine = new AppletEngine(Sensors, Text, () => Z10HidDevice.TryOpen(), UnleashDetector.IsRunning, Settings);
+        Engine.Renderer.Images = Images;
         Engine.SetApplets(Applets);
     }
 

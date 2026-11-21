@@ -38,6 +38,7 @@ public sealed class AppletEngine : IDisposable
     private IReadOnlyList<Framebuffer>? _bootFrames;
     private DateTime _bootStart;
     private int _bootShown = -1;
+    private bool _firstFrame;
 
     /// <summary>Pseudo-Applet, unter dem die Startanimation gemeldet wird.</summary>
     public static readonly Applet BootApplet = new() { Id = "boot", Name = "Startanimation" };
@@ -201,7 +202,7 @@ public sealed class AppletEngine : IDisposable
             if (Suspended == suspended) return;
             Suspended = suspended;
             if (suspended) { try { _display?.Release(); } catch (IOException) { } }
-            else { _display?.Invalidate(); _nextRender = DateTime.MinValue; }
+            else { _display?.Invalidate(); _firstFrame = true; _nextRender = DateTime.MinValue; }
         }
         StatusChanged?.Invoke();
     }
@@ -258,6 +259,7 @@ public sealed class AppletEngine : IDisposable
             _backlightDirty = true;
             _nextRender = DateTime.MinValue;
             DeviceInfo = dev.Description;
+            _firstFrame = true;
             SetStatus(EngineState.Connected, "Z10 verbunden");
             if (_bootPending)
             {
@@ -340,7 +342,7 @@ public sealed class AppletEngine : IDisposable
                     _bootShown = idx;
                     var frame = _bootFrames[idx];
                     FrameRendered?.Invoke(frame, BootApplet);
-                    if (_display is not null && !Suspended) TryDevice(() => _display.Show(frame));
+                    if (_display is not null && !Suspended) TryDevice(() => ShowOnDevice(frame));
                 }
                 return;
             }
@@ -354,7 +356,9 @@ public sealed class AppletEngine : IDisposable
         if (applet is null) return;
         if (!ReferenceEquals(applet, _lastShown)) _nextRender = DateTime.MinValue;
         if (now < _nextRender) return;
-        _nextRender = now.AddMilliseconds(Math.Max(100, applet.RefreshMs));
+        int refresh = Math.Max(100, applet.RefreshMs);
+        if (_renderer.IsAnimated(applet)) refresh = Math.Min(refresh, 100);   // animierte Grafiken flüssig halten
+        _nextRender = now.AddMilliseconds(refresh);
         if (now >= _nextFullRefresh)
         {
             _display?.Invalidate();
@@ -366,7 +370,21 @@ public sealed class AppletEngine : IDisposable
         _renderer.Render(applet, fb, DateTime.Now, _blink);
         _lastShown = applet;
         FrameRendered?.Invoke(fb, applet);
-        if (_display is not null && !Suspended) TryDevice(() => _display.Show(fb));
+        if (_display is not null && !Suspended) TryDevice(() => ShowOnDevice(fb));
+    }
+
+    private void ShowOnDevice(Framebuffer fb)
+    {
+        if (_display is null) return;
+        if (_firstFrame)
+        {
+            _firstFrame = false;
+            _display.ShowFirst(fb);
+        }
+        else
+        {
+            _display.Show(fb);
+        }
     }
 
     private void TryDevice(Action action)

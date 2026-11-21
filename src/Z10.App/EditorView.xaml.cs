@@ -39,15 +39,22 @@ public partial class EditorView : UserControl
     {
         _state = state;
         InitializeComponent();
-        _renderer = new AppletRenderer(state.Text, state.Sensors, state.Engine.History);
+        _renderer = new AppletRenderer(state.Text, state.Sensors, state.Engine.History) { Images = state.Images };
         EditorImage.Source = _bitmap;
         Layers.ItemsSource = _layers;
         AppletPicker.ItemsSource = _state.Applets;
         _state.AppletsChanged += () => AppletPicker.Items.Refresh();
         ApplyZoom();
 
-        _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _timer.Tick += (_, _) => { _blink = !_blink; RenderPreview(); UpdateValueHint(); };
+        // 100 ms, damit animierte Grafiken in der Vorschau laufen; Blinken und Wertanzeige jede Sekunde
+        _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+        int ticks = 0;
+        _timer.Tick += (_, _) =>
+        {
+            bool second = ++ticks % 10 == 0;
+            if (second) { _blink = !_blink; UpdateValueHint(); }
+            if (second || (_work is not null && _renderer.IsAnimated(_work))) RenderPreview(pushLive: second);
+        };
         _timer.Start();
 
         if (_state.Applets.Count > 0) Load(_state.Applets[0]);
@@ -168,14 +175,16 @@ public partial class EditorView : UserControl
         UpdateSelection();
     }
 
-    private void RenderPreview()
+    private void RenderPreview() => RenderPreview(pushLive: true);
+
+    private void RenderPreview(bool pushLive)
     {
         if (_work is null) return;
         var fb = new Framebuffer();
         _renderer.Render(_work, fb, DateTime.Now, _blink);
         LcdImage.Update(_bitmap, fb);
         UpdateSelection();
-        if (_visible) PushLive();
+        if (_visible && pushLive) PushLive();
     }
 
     private void UpdateSelection()
@@ -364,8 +373,7 @@ public partial class EditorView : UserControl
                 AddCheck("Großbuchstaben", c.UpperCase, v => c.UpperCase = v);
                 break;
             case IconWidget i:
-                AddCombo("Symbol", Icons.BuiltIn.Keys.OrderBy(k => k), i.Icon, v => i.Icon = v, editable: true,
-                    hint: "Eingebautes Symbol oder 8 Hex-Bytes, z. B. 18 3C 7E FF FF 7E 3C 18");
+                AddIconPicker(i);
                 break;
         }
 
@@ -463,6 +471,106 @@ public partial class EditorView : UserControl
         cb.AddHandler(TextBoxBase.TextChangedEvent, new TextChangedEventHandler((_, _) => Apply()));
         PropsPanel.Children.Add(cb);
         if (hint is not null) AddHint(hint);
+    }
+
+    // ---------- Symbolauswahl mit Vorschau ----------
+
+    public sealed record IconChoice(string Spec, string Label, ImageSource Preview);
+
+    private List<IconChoice> IconChoices(string current)
+    {
+        var list = new List<IconChoice>();
+        foreach (var (category, names) in Icons.Categories)
+            foreach (var n in names)
+                list.Add(new IconChoice(n, $"{category} · {n}", LcdImage.ToImage(Icons.Get(n))));
+        foreach (var a in _state.Images.All)
+            list.Add(new IconChoice(Icons.ImagePrefix + a.Name,
+                $"Eigene Grafik · {a.Name} ({a.Width}×{a.Height}{(a.IsAnimated ? $", {a.Frames.Count} Bilder" : "")})",
+                LcdImage.ToImage(a.Frame(0))));
+        if (!string.IsNullOrWhiteSpace(current) && list.All(c => !c.Spec.Equals(current, StringComparison.OrdinalIgnoreCase)))
+            list.Insert(0, new IconChoice(current, "Eigene Hex-Zeilen", LcdImage.ToImage(Icons.Get(current, _state.Images))));
+        return list;
+    }
+
+    private void AddIconPicker(IconWidget w)
+    {
+        AddLabel("Symbol");
+        var choices = IconChoices(w.Icon);
+        var cb = new ComboBox { ItemsSource = choices, MaxDropDownHeight = 420 };
+        cb.ItemTemplate = IconTemplate();
+        cb.SelectedItem = choices.FirstOrDefault(c => c.Spec.Equals(w.Icon, StringComparison.OrdinalIgnoreCase));
+        PropsPanel.Children.Add(cb);
+
+        var buttons = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
+        var import = new Button { Content = "Grafik importieren …", Margin = new Thickness(0, 0, 6, 6) };
+        var delete = new Button { Content = "Grafik löschen", Margin = new Thickness(0, 0, 6, 6),
+                                  IsEnabled = w.Icon.StartsWith(Icons.ImagePrefix, StringComparison.OrdinalIgnoreCase) };
+        buttons.Children.Add(import);
+        buttons.Children.Add(delete);
+        PropsPanel.Children.Add(buttons);
+        AddHint("Eigene Bilder und animierte GIFs werden beim Import auf 1 Bit umgerechnet. Animationen laufen auf der Tastatur mit bis zu 10 Bildern pro Sekunde.");
+
+        AddLabel("Eigene Hex-Zeilen (für Fortgeschrittene)");
+        var hex = new TextBox { Text = Icons.IsBuiltIn(w.Icon) || w.Icon.StartsWith(Icons.ImagePrefix, StringComparison.OrdinalIgnoreCase) ? "" : w.Icon,
+                                FontFamily = new FontFamily("Consolas") };
+        PropsPanel.Children.Add(hex);
+        AddHint("Je Zeile 2 Hex-Ziffern pro 8 Pixel, z. B. 18 3C 7E FF FF 7E 3C 18");
+
+        void Apply(string spec)
+        {
+            w.Icon = spec;
+            var bmp = Icons.Get(spec, _state.Images);
+            w.W = bmp.Width;
+            w.H = bmp.Height;
+            delete.IsEnabled = spec.StartsWith(Icons.ImagePrefix, StringComparison.OrdinalIgnoreCase);
+            RefreshGeometryBoxes();
+            Changed();
+        }
+
+        cb.SelectionChanged += (_, _) => { if (cb.SelectedItem is IconChoice c && c.Spec != w.Icon) Apply(c.Spec); };
+        hex.TextChanged += (_, _) => { if (hex.Text.Trim().Length > 0) Apply(hex.Text.Trim()); };
+        import.Click += (_, _) =>
+        {
+            var dlg = new ImportImageWindow(_state.Images) { Owner = Window.GetWindow(this) };
+            if (dlg.ShowDialog() == true && dlg.ImportedName is string name)
+            {
+                Apply(Icons.ImagePrefix + name);
+                BuildProps(w);
+            }
+        };
+        delete.Click += (_, _) =>
+        {
+            if (!w.Icon.StartsWith(Icons.ImagePrefix, StringComparison.OrdinalIgnoreCase)) return;
+            var name = w.Icon[Icons.ImagePrefix.Length..];
+            if (MessageBox.Show($"Grafik „{name}“ löschen? Applets, die sie verwenden, zeigen dann ein Ersatzsymbol.",
+                    "Grafik löschen", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            _state.Images.Delete(name);
+            Apply("cpu");
+            BuildProps(w);
+        };
+    }
+
+    private static DataTemplate IconTemplate()
+    {
+        var panel = new FrameworkElementFactory(typeof(StackPanel));
+        panel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+        var border = new FrameworkElementFactory(typeof(Border));
+        border.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(0x4A, 0x0B, 0x0D)));
+        border.SetValue(Border.PaddingProperty, new Thickness(3));
+        border.SetValue(Border.MarginProperty, new Thickness(0, 1, 8, 1));
+        var img = new FrameworkElementFactory(typeof(Image));
+        img.SetBinding(Image.SourceProperty, new System.Windows.Data.Binding(nameof(IconChoice.Preview)));
+        img.SetValue(FrameworkElement.WidthProperty, 32.0);
+        img.SetValue(FrameworkElement.HeightProperty, 32.0);
+        img.SetValue(Image.StretchProperty, Stretch.Uniform);
+        img.SetValue(RenderOptions.BitmapScalingModeProperty, BitmapScalingMode.NearestNeighbor);
+        border.AppendChild(img);
+        var text = new FrameworkElementFactory(typeof(TextBlock));
+        text.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding(nameof(IconChoice.Label)));
+        text.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+        panel.AppendChild(border);
+        panel.AppendChild(text);
+        return new DataTemplate { VisualTree = panel };
     }
 
     private void AddAlign(TextAlign value, Action<TextAlign> set)
