@@ -547,6 +547,15 @@ var tests = new List<(string Name, Action Body)>
         Eq(42, r.Result);
         True(dev.Pages.Count == 4, "Meldung nicht auf dem LCD angezeigt");
         True(!e2.DeviceBusy, "Gerät bleibt belegt");
+
+        // Danach mehrere Bilder komplett senden (Tastatur verwirft nach dem Speichern noch Seiten)
+        var t0 = DateTime.UtcNow;
+        e2.SetApplets(new[] { new Applet { Name = "Fest", RefreshMs = 1000, Widgets = { new TextWidget { Text = "x", W = 20, H = 7 } } } });
+        e2.Tick(t0);
+        dev.Pages.Clear();
+        e2.Tick(t0.AddMilliseconds(300));
+        e2.Tick(t0.AddMilliseconds(600));
+        True(dev.Pages.Count >= 8, $"nach dem Gerätebefehl nicht komplett neu gesendet ({dev.Pages.Count} Seiten)");
     }),
 };
 

@@ -34,6 +34,7 @@ public sealed class AppletEngine : IDisposable
     private bool _blink;
     private bool _backlightDirty = true;
     private DateTime _nextFullRefresh;
+    private DateTime _forceFullUntil;
     private bool _bootPending;
     private IReadOnlyList<Framebuffer>? _bootFrames;
     private DateTime _bootStart;
@@ -48,6 +49,9 @@ public sealed class AppletEngine : IDisposable
     /// Tastatur ihren Displayspeicher verliert (Ruhezustand, Neuverbindung), ohne dass die Engine es bemerkt.
     /// </summary>
     public TimeSpan FullRefreshInterval { get; set; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>So lange nach einem Gerätebefehl werden alle Bilder komplett gesendet.</summary>
+    public TimeSpan AfterJobRefresh { get; set; } = TimeSpan.FromSeconds(4);
 
     public event Action<Framebuffer, Applet>? FrameRendered;
     public event Action? StatusChanged;
@@ -301,6 +305,9 @@ public sealed class AppletEngine : IDisposable
                     _display.Invalidate();
                     _backlightDirty = true;
                     _firstFrame = true;
+                    // Nach dem Speichern ins Flash verwirft die Tastatur noch eine Weile Display-Seiten. Solange
+                    // jedes Bild komplett senden, sonst bleibt die Meldung in unveränderten Zeilen stehen.
+                    _forceFullUntil = DateTime.UtcNow + AfterJobRefresh;
                     if (_releaseAfterJob && Suspended) { try { _display.Release(); } catch (IOException) { } }
                 }
                 _releaseAfterJob = false;
@@ -474,9 +481,10 @@ public sealed class AppletEngine : IDisposable
         if (!ReferenceEquals(applet, _lastShown)) _nextRender = DateTime.MinValue;
         if (now < _nextRender) return;
         int refresh = Math.Max(100, applet.RefreshMs);
+        if (now < _forceFullUntil) refresh = Math.Min(refresh, 250);   // nach Gerätebefehl schnell nachziehen
         if (_renderer.IsAnimated(applet)) refresh = Math.Min(refresh, 100);   // animierte Grafiken flüssig halten
         _nextRender = now.AddMilliseconds(refresh);
-        if (now >= _nextFullRefresh)
+        if (now >= _nextFullRefresh || now < _forceFullUntil)
         {
             _display?.Invalidate();
             _nextFullRefresh = now + FullRefreshInterval;
