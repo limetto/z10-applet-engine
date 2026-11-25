@@ -38,6 +38,50 @@
 
       <Border Style="{StaticResource Card}" Margin="0,16,0,0">
         <StackPanel>
+          <TextBlock Text="Displayfarbe" Style="{StaticResource H2}" Margin="0"/>
+          <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0"
+                     Text="Farbe der Displaybeleuchtung. Änderungen sind sofort als Vorschau zu sehen und werden mit „Auf Tastatur schreiben“ dauerhaft gespeichert."/>
+          <Grid Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="20"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <Border x:Name="ColorSwatch" Width="160" Height="64" CornerRadius="8" BorderThickness="1"
+                      BorderBrush="{StaticResource Line2Brush}" Background="Black">
+                <TextBlock x:Name="ColorSwatchText" Text="Z10" FontFamily="Consolas" FontSize="22" FontWeight="Bold"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#101010"/>
+              </Border>
+              <TextBlock Text="Hex" Style="{StaticResource Label}"/>
+              <TextBox x:Name="HexBox" Width="160" HorizontalAlignment="Left" LostFocus="Hex_Commit" KeyDown="Hex_KeyDown"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+              <DockPanel>
+                <TextBlock x:Name="RValue" DockPanel.Dock="Right" Width="36" TextAlignment="Right" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"/>
+                <TextBlock Text="Rot" Width="44" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"/>
+                <Slider x:Name="RSlider" Minimum="0" Maximum="255" SmallChange="1" LargeChange="16" IsSnapToTickEnabled="True" TickFrequency="1" ValueChanged="Rgb_Changed" VerticalAlignment="Center"/>
+              </DockPanel>
+              <DockPanel Margin="0,6,0,0">
+                <TextBlock x:Name="GValue" DockPanel.Dock="Right" Width="36" TextAlignment="Right" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"/>
+                <TextBlock Text="Grün" Width="44" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"/>
+                <Slider x:Name="GSlider" Minimum="0" Maximum="255" SmallChange="1" LargeChange="16" IsSnapToTickEnabled="True" TickFrequency="1" ValueChanged="Rgb_Changed" VerticalAlignment="Center"/>
+              </DockPanel>
+              <DockPanel Margin="0,6,0,0">
+                <TextBlock x:Name="BValue" DockPanel.Dock="Right" Width="36" TextAlignment="Right" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"/>
+                <TextBlock Text="Blau" Width="44" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"/>
+                <Slider x:Name="BSlider" Minimum="0" Maximum="255" SmallChange="1" LargeChange="16" IsSnapToTickEnabled="True" TickFrequency="1" ValueChanged="Rgb_Changed" VerticalAlignment="Center"/>
+              </DockPanel>
+              <WrapPanel x:Name="PresetPanel" Margin="0,12,0,0"/>
+              <CheckBox x:Name="AllProfilesBox" Margin="0,8,0,0" Content="Farbe in alle fünf Profile schreiben (sonst nur ins aktive)"
+                        Checked="AllProfiles_Changed" Unchecked="AllProfiles_Changed"/>
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+        <StackPanel>
           <DockPanel>
             <TextBlock x:Name="CountText" DockPanel.Dock="Right" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"/>
             <TextBlock Text="Tastenauswahl" Style="{StaticResource H2}" Margin="0"/>

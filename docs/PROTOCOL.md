@@ -80,9 +80,20 @@ Aus USBPcap-Mitschnitten von EVGA Unleash. Alle Befehle sind Feature-Reports 7 (
 Unleash schreibt: `81`, `01 P`, `10 P`, fünfmal `82 n` + `02 n`, ~9 × `81` (Polling), `03 P`, `12 P`, `90 P`.
 Die Änderung wird erst am Ende sichtbar; Unleash zeigt währenddessen „APPLYING DRIVER“ auf dem LCD.
 
-Profilblock (Nutzdaten): `[3]` 0x30 (nur aktives Profil, Bedeutung offen), `[4]` 0x80 | Modus
-(0 = alle Tasten, 1 = Customize, 2 = Trigger, 3 = Explosion), `[5]` Helligkeit 0..10 (0 = aus, Unleash setzt sie in allen
-Blöcken), `[6]` Atmen (01), `[7]` 0xFF (nur aktives Profil). Unbekannte Bytes werden unverändert zurückgeschrieben.
+Profilblock (Nutzdaten, einer pro Profil 1..5, laut `hid.exe` und am Gerät geprüft):
+
+| Byte | Inhalt |
+|---|---|
+| 1 | Spielmodus: Windows-Taste sperren |
+| 3 | 0x30, Bedeutung offen |
+| 4 | 0x80 \| Modus (0 = alle Tasten, 1 = Customize, 2 = Trigger, 3 = Explosion) |
+| 5 | Helligkeit 0..10 (0 = aus; Unleash setzt sie in allen Blöcken) |
+| 6 | Atmen (01) |
+| 7..9 | Farbe der Displaybeleuchtung R, G, B |
+| 10..15 | Spielmodus: Alt+F4, Alt+Tab, Menütaste, Tab, Shift links, Strg+Esc sperren |
+
+Ein einzelnes `02 n` ohne `12` ändert die Displayfarbe sofort, aber nicht dauerhaft (so blinkt Unleash das Display
+rot/blau). Unbekannte Bytes werden unverändert zurückgeschrieben.
 
 Tastenpositionen: Die Tabelle von `03` ordnet jeder Position (0..127) einen HID-Code zu, darüber ist die Maske
 entschlüsselt (Q = 8, W = 16, A = 10, S = 18, D = 26, Fn = 120 mit Code 0xAD, E-Tasten = 73, 74, 76, 78, 80, 125, 127 mit

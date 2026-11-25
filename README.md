@@ -12,7 +12,7 @@ Die Applets setzt du im Layout-Editor aus Bausteinen zusammen. Die Werte kommen 
 ## Funktionen
 
 - **Applet-Rotation** mit eigener Anzeigedauer und Aktualisierung pro Applet; Rotation anhalten, vor und zurück blättern
-- **Tastenbeleuchtung**: Effekt (Aus, Statisch, Atmen, Ausgewählte Tasten, Trigger, Explosion), Helligkeit in 10 Stufen und Auswahl einzelner Tasten auf einer Tastaturgrafik mit Gruppen (WASD, F-Tasten, E-Tasten, Ziffernblock …); wird wie bei Unleash ins aktive Profil der Tastatur geschrieben
+- **Tastenbeleuchtung**: Effekt (Aus, Statisch, Atmen, Ausgewählte Tasten, Trigger, Explosion), Helligkeit in 10 Stufen und Auswahl einzelner Tasten auf einer Tastaturgrafik mit Gruppen (WASD, F-Tasten, E-Tasten, Ziffernblock …); dazu die **Farbe der Displaybeleuchtung** mit Live-Vorschau; wird wie bei Unleash ins aktive Profil der Tastatur geschrieben
 - **Tasten E6/E7** an der Tastatur: standardmäßig voriges und nächstes Applet, belegbar mit Rotation anhalten oder Display freigeben
 - **Layout-Editor** mit Pixelraster, Ziehen mit der Maus, Pfeiltasten und Ebenenliste
 - **Bausteine:** Text, Sensorwert (mit Format wie `{value/1000:0.0} GHz`), Balken, Verlauf, Uhr/Datum, Symbol

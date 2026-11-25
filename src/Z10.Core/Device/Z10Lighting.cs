@@ -28,7 +28,17 @@ public sealed class LightingConfig
     /// <summary>Tastenpositionen (0..127) für <see cref="LightingEffect.Customize"/>.</summary>
     public List<int> Keys { get; set; } = new();
 
-    public LightingConfig Clone() => new() { Effect = Effect, Brightness = Brightness, Keys = Keys.ToList() };
+    /// <summary>Farbe der Displaybeleuchtung als "#RRGGBB"; null = unverändert lassen.</summary>
+    public string? DisplayColor { get; set; }
+
+    /// <summary>Displayfarbe in alle fünf Profile schreiben statt nur ins aktive.</summary>
+    public bool ColorAllProfiles { get; set; }
+
+    public LightingConfig Clone() => new()
+    {
+        Effect = Effect, Brightness = Brightness, Keys = Keys.ToList(), DisplayColor = DisplayColor,
+        ColorAllProfiles = ColorAllProfiles,
+    };
 }
 
 /// <summary>Was aus der Tastatur gelesen wurde.</summary>
@@ -47,6 +57,7 @@ public sealed class LightingState
     public int Mode => ActiveBlock[Z10Lighting.BlockMode] & 0x7F;
     public int Brightness => ActiveBlock[Z10Lighting.BlockBrightness];
     public bool Breathing => ActiveBlock[Z10Lighting.BlockBreathing] != 0;
+    public string DisplayColor => Z10Lighting.ColorOf(ActiveBlock);
 
     /// <summary>Übersetzt den gelesenen Zustand in die Einstellungen der Oberfläche.</summary>
     public LightingConfig ToConfig()
@@ -59,7 +70,10 @@ public sealed class LightingState
             Z10Lighting.ModeExplosion => LightingEffect.Explosion,
             _ => Breathing ? LightingEffect.Breathing : LightingEffect.Static,
         };
-        return new LightingConfig { Effect = effect, Brightness = Brightness == 0 ? 5 : Brightness, Keys = keys };
+        return new LightingConfig
+        {
+            Effect = effect, Brightness = Brightness == 0 ? 5 : Brightness, Keys = keys, DisplayColor = DisplayColor,
+        };
     }
 }
 
@@ -75,7 +89,9 @@ public sealed class LightingState
 ///   03 P      Tastenbelegung Position → HID-Code (immer dieselbe Tabelle)
 ///   12 P      speichern (Flash, dauert ~3 s)
 ///   90 P      Maske zurücklesen (GET)
-/// Block: [3]=0x30? [4]=0x80|Modus [5]=Helligkeit 0..10 [6]=Atmen [7]=0xFF?  – unbekannte Bytes bleiben erhalten.
+/// Block: [1] Spielmodus Win-Taste, [3]=0x30?, [4]=0x80|Modus, [5]=Helligkeit 0..10, [6]=Atmen,
+///        [7..9] Displayfarbe R G B, [10..15] Spielmodus Alt+F4, Alt+Tab, Menü, Tab, Shift links, Strg+Esc.
+/// Unbekannte Bytes bleiben erhalten. Ein einzelnes 02 ohne 12 ändert die Farbe sofort, aber nicht dauerhaft.
 /// Die Änderungen landen im Flash der Tastatur: nur bei Bedarf schreiben, nicht laufend.
 /// </summary>
 public static class Z10Lighting
@@ -84,6 +100,7 @@ public static class Z10Lighting
     public const int BlockMode = 4;
     public const int BlockBrightness = 5;
     public const int BlockBreathing = 6;
+    public const int BlockColor = 7;
     public const int ModeAll = 0, ModeCustomize = 1, ModeTrigger = 2, ModeExplosion = 3;
     public const int MaxBrightness = 10;
 
@@ -144,6 +161,8 @@ public static class Z10Lighting
                 block[BlockMode] = (byte)(0x80 | mode);
                 block[BlockBreathing] = (byte)(config.Effect == LightingEffect.Breathing ? 1 : 0);
             }
+            if (TryParseColor(config.DisplayColor, out var rgb) && (n == profile || config.ColorAllProfiles))
+                rgb.CopyTo(block, BlockColor);
             Send(dev, CmdWriteBlock, (byte)n, block);
         }
 
@@ -160,6 +179,33 @@ public static class Z10Lighting
         if (!state.Mask.AsSpan(0, Positions).SequenceEqual(mask.AsSpan(0, Positions)))
             throw new IOException("Die Tastatur hat die Tastenauswahl nicht übernommen.");
         return state;
+    }
+
+    /// <summary>
+    /// Ändert nur die Displayfarbe des aktiven Profils, ohne zu speichern (wie die Blink-Funktion von Unleash).
+    /// Sofort sichtbar, nach dem Abziehen der Tastatur aber wieder weg. Dauert ca. 0,1 s.
+    /// </summary>
+    public static void PreviewColor(IZ10Device dev, string color)
+    {
+        if (!TryParseColor(color, out var rgb)) throw new ArgumentException("Ungültige Farbe: " + color);
+        var status = Query(dev, CmdStatus, 0);
+        byte profile = (byte)(status[2] is >= 1 and <= 5 ? status[2] : 1);
+        var block = ReadBlock(dev, profile);
+        rgb.CopyTo(block, BlockColor);
+        Send(dev, CmdWriteBlock, profile, block);
+    }
+
+    public static string ColorOf(byte[] block) =>
+        $"#{block[BlockColor]:X2}{block[BlockColor + 1]:X2}{block[BlockColor + 2]:X2}";
+
+    public static bool TryParseColor(string? text, out byte[] rgb)
+    {
+        rgb = new byte[3];
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        var t = text.Trim().TrimStart('#');
+        if (t.Length != 6) return false;
+        try { rgb = Convert.FromHexString(t); return true; }
+        catch (FormatException) { return false; }
     }
 
     public static byte[] BuildMask(LightingConfig config)

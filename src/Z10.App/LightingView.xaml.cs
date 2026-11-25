@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Z10.Core.Device;
 using Z10.Core.Engine;
 
@@ -39,6 +40,14 @@ public partial class LightingView : UserControl
     private bool _busy;
     private bool _readOnce;
     private bool _dirty;
+    private readonly DispatcherTimer _previewTimer;
+    private string? _pendingPreview;
+
+    private static readonly (string Name, string Hex)[] Presets =
+    {
+        ("Rot", "#FF0000"), ("Orange", "#FF7F00"), ("Gelb", "#FFFF00"), ("Grün", "#00FF00"), ("Türkis", "#00FFFF"),
+        ("Blau", "#0000FF"), ("Violett", "#8000FF"), ("Pink", "#FF00FF"), ("Weiß", "#FFFFFF"),
+    };
 
     public LightingView(AppState state)
     {
@@ -62,6 +71,20 @@ public partial class LightingView : UserControl
         var invert = new Button { Content = "Umkehren", Margin = new Thickness(0, 0, 8, 8), Padding = new Thickness(12, 6, 12, 6) };
         invert.Click += (_, _) => SetKeys(Z10KeyLayout.AllLit.Except(_config.Keys));
         GroupPanel.Children.Add(invert);
+
+        foreach (var (name, hex) in Presets)
+        {
+            var c = (Color)ColorConverter.ConvertFromString(hex);
+            var b = new Button
+            {
+                Width = 30, Height = 30, MinHeight = 30, Padding = new Thickness(0), Margin = new Thickness(0, 0, 6, 6),
+                Background = new SolidColorBrush(c), ToolTip = $"{name} ({hex})", Tag = hex,
+            };
+            b.Click += (_, _) => SetColor(hex);
+            PresetPanel.Children.Add(b);
+        }
+        _previewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+        _previewTimer.Tick += (_, _) => RunPreview();
 
         BuildKeyboard();
         _loading = false;
@@ -133,6 +156,8 @@ public partial class LightingView : UserControl
         _loading = true;
         EffectBox.SelectedIndex = Array.FindIndex(Effects, e => e.Effect == _config.Effect);
         BrightnessSlider.Value = Math.Clamp(_config.Brightness, 1, Z10Lighting.MaxBrightness);
+        ShowColor();
+        AllProfilesBox.IsChecked = _config.ColorAllProfiles;
         _loading = false;
         Refresh();
     }
@@ -163,7 +188,91 @@ public partial class LightingView : UserControl
             : "Die Auswahl wirkt nur beim Effekt „Ausgewählte Tasten“ (weiß umrandet). Ein Klick auf eine Taste wechselt dorthin.";
         ReadButton.IsEnabled = WriteButton.IsEnabled = !_busy;
         EffectBox.IsEnabled = GroupPanel.IsEnabled = KeyCanvas.IsEnabled = !_busy;
+        RSlider.IsEnabled = GSlider.IsEnabled = BSlider.IsEnabled = HexBox.IsEnabled = PresetPanel.IsEnabled = !_busy;
         WriteButton.Content = _dirty ? "Auf Tastatur schreiben •" : "Auf Tastatur schreiben";
+    }
+
+    private void ShowColor()
+    {
+        bool wasLoading = _loading;
+        _loading = true;
+        if (Z10Lighting.TryParseColor(_config.DisplayColor, out var rgb))
+        {
+            RSlider.Value = rgb[0]; GSlider.Value = rgb[1]; BSlider.Value = rgb[2];
+            HexBox.Text = _config.DisplayColor!.ToUpperInvariant();
+            var c = Color.FromRgb(rgb[0], rgb[1], rgb[2]);
+            ColorSwatch.Background = new SolidColorBrush(c);
+            ColorSwatchText.Text = "Z10";
+        }
+        else
+        {
+            HexBox.Text = "";
+            ColorSwatch.Background = Brushes.Transparent;
+            ColorSwatchText.Text = "?";
+        }
+        RValue.Text = ((int)RSlider.Value).ToString();
+        GValue.Text = ((int)GSlider.Value).ToString();
+        BValue.Text = ((int)BSlider.Value).ToString();
+        _loading = wasLoading;
+    }
+
+    private void SetColor(string hex)
+    {
+        if (!Z10Lighting.TryParseColor(hex, out var rgb)) { ShowColor(); return; }
+        _config.DisplayColor = $"#{rgb[0]:X2}{rgb[1]:X2}{rgb[2]:X2}";
+        ShowColor();
+        Changed();
+        SchedulePreview(_config.DisplayColor);
+    }
+
+    private void Rgb_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_loading || BValue is null) return;
+        SetColor($"#{(int)RSlider.Value:X2}{(int)GSlider.Value:X2}{(int)BSlider.Value:X2}");
+    }
+
+    private void Hex_Commit(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        var text = HexBox.Text.Trim();
+        if (!text.StartsWith('#')) text = "#" + text;
+        if (!string.Equals(text, _config.DisplayColor, StringComparison.OrdinalIgnoreCase)) SetColor(text);
+    }
+
+    private void Hex_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter) Hex_Commit(sender, e);
+    }
+
+    private void AllProfiles_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _config.ColorAllProfiles = AllProfilesBox.IsChecked == true;
+        Changed();
+    }
+
+    /// <summary>Live-Vorschau: Farbe ohne Speichern an die Tastatur (gebündelt, max. ~7× pro Sekunde).</summary>
+    private void SchedulePreview(string color)
+    {
+        if (_state.Engine.State != EngineState.Connected) return;
+        _pendingPreview = color;
+        _previewTimer.Stop();
+        _previewTimer.Start();
+    }
+
+    private async void RunPreview()
+    {
+        _previewTimer.Stop();
+        if (_pendingPreview is null) return;
+        if (_busy || _state.Engine.DeviceBusy) { _previewTimer.Start(); return; }   // später nochmal
+        var color = _pendingPreview;
+        _pendingPreview = null;
+        try
+        {
+            await _state.Engine.RunDeviceJob(dev => { Z10Lighting.PreviewColor(dev, color); return true; }, null);
+        }
+        catch (InvalidOperationException) { _pendingPreview ??= color; _previewTimer.Start(); }
+        catch (Exception ex) { StatusText.Text = "Vorschau fehlgeschlagen: " + Describe(ex); }
     }
 
     private void Changed()
@@ -274,6 +383,7 @@ public partial class LightingView : UserControl
         _config.Brightness = read.Brightness;
         // Leere Maske (z. B. nach "alle Tasten") nicht übernehmen, damit die eigene Auswahl erhalten bleibt
         if (read.Keys.Count > 0 || read.Effect == LightingEffect.Customize) _config.Keys = read.Keys;
+        _config.DisplayColor = read.DisplayColor;
         _state.Settings.Lighting = _config.Clone();
         _state.SaveSettings();
         ShowConfig();

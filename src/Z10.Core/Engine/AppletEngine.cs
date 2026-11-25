@@ -242,7 +242,7 @@ public sealed class AppletEngine : IDisposable
     public void Dispose() => Stop();
 
     private readonly object _jobLock = new();
-    private (Func<IZ10Device, object?> Run, string Message, TaskCompletionSource<object?> Done)? _job;
+    private (Func<IZ10Device, object?> Run, string? Message, TaskCompletionSource<object?> Done)? _job;
     private bool _releaseAfterJob;
 
     /// <summary>true, solange ein Gerätebefehl (z. B. Beleuchtung schreiben) läuft. Die Anzeige steht so lange.</summary>
@@ -250,9 +250,9 @@ public sealed class AppletEngine : IDisposable
 
     /// <summary>
     /// Führt einen längeren Gerätebefehl im Engine-Thread aus. Die Anzeige wird währenddessen angehalten und zeigt
-    /// <paramref name="lcdMessage"/>. Schlägt mit IOException fehl, wenn die Tastatur nicht verbunden ist.
+    /// <paramref name="lcdMessage"/> (null = Anzeige bleibt, für kurze Befehle). Schlägt mit IOException fehl, wenn die Tastatur nicht verbunden ist.
     /// </summary>
-    public async Task<T> RunDeviceJob<T>(Func<IZ10Device, T> job, string lcdMessage)
+    public async Task<T> RunDeviceJob<T>(Func<IZ10Device, T> job, string? lcdMessage)
     {
         var done = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
         lock (_jobLock)
@@ -266,7 +266,7 @@ public sealed class AppletEngine : IDisposable
 
     private void RunPendingJob()
     {
-        (Func<IZ10Device, object?> Run, string Message, TaskCompletionSource<object?> Done) job;
+        (Func<IZ10Device, object?> Run, string? Message, TaskCompletionSource<object?> Done) job;
         lock (_jobLock)
         {
             if (_job is null) return;
@@ -281,14 +281,15 @@ public sealed class AppletEngine : IDisposable
         {
             display = _display;
             oldText = StatusText;
-            if (display is not null && !Suspended) TryDevice(() => display.Show(MessageFrame(job.Message)));
+            if (display is not null && !Suspended && job.Message is not null)
+                TryDevice(() => display.Show(MessageFrame(job.Message)));
             display = _display;
         }
 
         try
         {
             if (display is null) throw new IOException("Die Tastatur ist nicht verbunden.");
-            SetStatus(State, job.Message);
+            if (job.Message is not null) SetStatus(State, job.Message);
             job.Done.SetResult(job.Run(display.Device));
         }
         catch (Exception ex)
@@ -302,18 +303,21 @@ public sealed class AppletEngine : IDisposable
                 DeviceBusy = false;
                 if (_display is not null)
                 {
-                    _display.Invalidate();
-                    _backlightDirty = true;
-                    _firstFrame = true;
+                    if (job.Message is not null)
+                    {
+                        _display.Invalidate();
+                        _backlightDirty = true;
+                        _firstFrame = true;
+                    }
                     // Nach dem Speichern ins Flash verwirft die Tastatur noch eine Weile Display-Seiten. Solange
                     // jedes Bild komplett senden, sonst bleibt die Meldung in unveränderten Zeilen stehen.
-                    _forceFullUntil = DateTime.UtcNow + AfterJobRefresh;
+                    if (job.Message is not null) _forceFullUntil = DateTime.UtcNow + AfterJobRefresh;
                     if (_releaseAfterJob && Suspended) { try { _display.Release(); } catch (IOException) { } }
                 }
                 _releaseAfterJob = false;
                 _nextRender = DateTime.MinValue;
             }
-            if (StatusText == job.Message) SetStatus(State, oldText);
+            if (job.Message is not null && StatusText == job.Message) SetStatus(State, oldText);
         }
     }
 
