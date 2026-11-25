@@ -47,6 +47,7 @@ public partial class EditorView : UserControl
         ApplyZoom();
 
         // 100 ms, damit animierte Grafiken in der Vorschau laufen; Blinken und Wertanzeige jede Sekunde
+        LcdImage.ColorChanged += () => Dispatcher.BeginInvoke(() => RenderPreview(pushLive: false));
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
         int ticks = 0;
         _timer.Tick += (_, _) =>

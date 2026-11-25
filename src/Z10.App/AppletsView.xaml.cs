@@ -32,9 +32,12 @@ public partial class AppletsView : UserControl
         List.ItemsSource = _state.Applets;
         _state.AppletsChanged += () => List.Items.Refresh();
         _state.Engine.FrameRendered += OnFrame;
+        LcdImage.ColorChanged += () => Dispatcher.BeginInvoke(() => { if (_lastFrame is not null) LcdImage.Update(_bitmap, _lastFrame); });
         if (List.Items.Count > 0) List.SelectedIndex = 0;
         UpdatePauseButton();
     }
+
+    private Framebuffer? _lastFrame;
 
     private Applet? Selected => List.SelectedItem as Applet;
 
@@ -43,6 +46,7 @@ public partial class AppletsView : UserControl
         var copy = fb.Clone();
         Dispatcher.BeginInvoke(() =>
         {
+            _lastFrame = copy;
             LcdImage.Update(_bitmap, copy);
             PreviewTitle.Text = "Auf der Tastatur: " + applet.Name;
         });

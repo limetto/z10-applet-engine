@@ -32,6 +32,7 @@ public partial class App : Application
         }
 
         State = new AppState();
+        LcdImage.SetColor(State.Settings.Lighting?.DisplayColor);
         State.Engine.Start();
 
         _window = new MainWindow(State);

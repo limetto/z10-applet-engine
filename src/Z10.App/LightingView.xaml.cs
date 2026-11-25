@@ -233,6 +233,7 @@ public partial class LightingView : UserControl
     {
         if (!Z10Lighting.TryParseColor(hex, out var rgb)) { ShowColor(); return; }
         _config.DisplayColor = $"#{rgb[0]:X2}{rgb[1]:X2}{rgb[2]:X2}";
+        LcdImage.SetColor(_config.DisplayColor);
         ShowColor();
         Changed();
         if (!_dragging) SchedulePreview(_config.DisplayColor);
@@ -397,6 +398,7 @@ public partial class LightingView : UserControl
         // Leere Maske (z. B. nach "alle Tasten") nicht übernehmen, damit die eigene Auswahl erhalten bleibt
         if (read.Keys.Count > 0 || read.Effect == LightingEffect.Customize) _config.Keys = read.Keys;
         _config.DisplayColor = read.DisplayColor;
+        LcdImage.SetColor(_config.DisplayColor);
         _state.Settings.Lighting = _config.Clone();
         _state.SaveSettings();
         ShowConfig();
