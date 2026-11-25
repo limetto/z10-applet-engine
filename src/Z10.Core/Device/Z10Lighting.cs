@@ -162,7 +162,7 @@ public static class Z10Lighting
                 block[BlockBreathing] = (byte)(config.Effect == LightingEffect.Breathing ? 1 : 0);
             }
             if (TryParseColor(config.DisplayColor, out var rgb) && (n == profile || config.ColorAllProfiles))
-                rgb.CopyTo(block, BlockColor);
+                ToDevice(rgb).CopyTo(block, BlockColor);
             Send(dev, CmdWriteBlock, (byte)n, block);
         }
 
@@ -191,12 +191,34 @@ public static class Z10Lighting
         var status = Query(dev, CmdStatus, 0);
         byte profile = (byte)(status[2] is >= 1 and <= 5 ? status[2] : 1);
         var block = ReadBlock(dev, profile);
-        rgb.CopyTo(block, BlockColor);
+        ToDevice(rgb).CopyTo(block, BlockColor);
         Send(dev, CmdWriteBlock, profile, block);
     }
 
-    public static string ColorOf(byte[] block) =>
-        $"#{block[BlockColor]:X2}{block[BlockColor + 1]:X2}{block[BlockColor + 2]:X2}";
+    /// <summary>
+    /// Grüne und blaue LED der Displaybeleuchtung sind etwa doppelt so hell wie die rote (am Gerät ermittelt:
+    /// Weiß ≈ FF 7F 7F, Gelb ≈ FF 7F 00). Höchstwert, der für volle Helligkeit je Kanal gesendet wird.
+    /// </summary>
+    public static readonly int[] ColorMax = { 255, 127, 127 };
+
+    /// <summary>Wahrgenommene Farbe (0..255 je Kanal) → Werte für die Tastatur.</summary>
+    public static byte[] ToDevice(byte[] rgb) =>
+        Enumerable.Range(0, 3).Select(i => (byte)Math.Round(rgb[i] * ColorMax[i] / 255.0)).ToArray();
+
+    /// <summary>Werte aus der Tastatur → wahrgenommene Farbe.</summary>
+    public static byte[] FromDevice(ReadOnlySpan<byte> dev)
+    {
+        var rgb = new byte[3];
+        for (int i = 0; i < 3; i++) rgb[i] = (byte)Math.Min(255, Math.Round(dev[i] * 255.0 / ColorMax[i]));
+        return rgb;
+    }
+
+    /// <summary>Displayfarbe eines Blocks als wahrgenommene Farbe "#RRGGBB".</summary>
+    public static string ColorOf(byte[] block)
+    {
+        var rgb = FromDevice(block.AsSpan(BlockColor, 3));
+        return $"#{rgb[0]:X2}{rgb[1]:X2}{rgb[2]:X2}";
+    }
 
     public static bool TryParseColor(string? text, out byte[] rgb)
     {

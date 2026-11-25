@@ -531,20 +531,25 @@ var tests = new List<(string Name, Action Body)>
         Eq(LightingEffect.Off, Z10Lighting.Read(dev).ToConfig().Effect);
         Eq((byte)0xFF, kb.Blocks[0][7]);         // ohne DisplayColor bleibt die Farbe
 
+        // Farbkorrektur: Grün und Blau werden mit halber Stärke gesendet
+        SeqB(new byte[] { 0xFF, 0x7F, 0x7F }, Z10Lighting.ToDevice(new byte[] { 255, 255, 255 }));
+        SeqB(new byte[] { 0xFF, 0x7F, 0x00 }, Z10Lighting.ToDevice(new byte[] { 255, 255, 0 }));
+        SeqB(new byte[] { 255, 255, 255 }, Z10Lighting.FromDevice(new byte[] { 0xFF, 0x7F, 0x7F }));
+
         // Displayfarbe nur im aktiven Profil
-        Z10Lighting.Write(dev, new LightingConfig { DisplayColor = "#0080FF" });
-        SeqB(new byte[] { 0x00, 0x80, 0xFF }, kb.Blocks[0][7..10]);
+        Z10Lighting.Write(dev, new LightingConfig { DisplayColor = "#00FFFF" });
+        SeqB(new byte[] { 0x00, 0x7F, 0x7F }, kb.Blocks[0][7..10]);
         SeqB(new byte[] { 0, 0, 0 }, kb.Blocks[1][7..10]);
-        Eq("#0080FF", Z10Lighting.Read(dev).DisplayColor);
+        Eq("#00FFFF", Z10Lighting.Read(dev).DisplayColor);
         // in allen Profilen
         Z10Lighting.Write(dev, new LightingConfig { DisplayColor = "ff7f00", ColorAllProfiles = true });
-        for (int i = 0; i < 5; i++) SeqB(new byte[] { 0xFF, 0x7F, 0x00 }, kb.Blocks[i][7..10]);
+        for (int i = 0; i < 5; i++) SeqB(new byte[] { 0xFF, 0x3F, 0x00 }, kb.Blocks[i][7..10]);
 
         // Vorschau: nur Status, Block lesen, Block schreiben – kein Speichern
         dev.Reports.Clear();
         Z10Lighting.PreviewColor(dev, "#00FF00");
         Seq(new[] { 0x81, 0x82, 0x02 }, dev.Reports.Select(r => (int)r[1]).ToList());
-        SeqB(new byte[] { 0x00, 0xFF, 0x00 }, kb.Blocks[0][7..10]);
+        SeqB(new byte[] { 0x00, 0x7F, 0x00 }, kb.Blocks[0][7..10]);
         Eq((byte)0x42, kb.Blocks[0][100]);
     }),
 

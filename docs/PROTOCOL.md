@@ -89,7 +89,7 @@ Profilblock (Nutzdaten, einer pro Profil 1..5, laut `hid.exe` und am Gerät gepr
 | 4 | 0x80 \| Modus (0 = alle Tasten, 1 = Customize, 2 = Trigger, 3 = Explosion) |
 | 5 | Helligkeit 0..10 (0 = aus; Unleash setzt sie in allen Blöcken) |
 | 6 | Atmen (01) |
-| 7..9 | Farbe der Displaybeleuchtung R, G, B |
+| 7..9 | Farbe der Displaybeleuchtung R, G, B (Grün und Blau sind etwa doppelt so hell: Weiß ≈ `FF 7F 7F`, Gelb ≈ `FF 7F 00`; die App rechnet das um) |
 | 10..15 | Spielmodus: Alt+F4, Alt+Tab, Menütaste, Tab, Shift links, Strg+Esc sperren |
 
 Ein einzelnes `02 n` ohne `12` ändert die Displayfarbe sofort, aber nicht dauerhaft (so blinkt Unleash das Display
