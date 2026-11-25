@@ -40,7 +40,7 @@
         <StackPanel>
           <TextBlock Text="Displayfarbe" Style="{StaticResource H2}" Margin="0"/>
           <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0"
-                     Text="Farbe der Displaybeleuchtung. Änderungen sind sofort als Vorschau zu sehen und werden mit „Auf Tastatur schreiben“ dauerhaft gespeichert."/>
+                     Text="Farbe der Displaybeleuchtung. Die Farbe wird nach dem Loslassen des Reglers an die Tastatur geschickt und bleibt dort auch nach dem Abstecken erhalten. „Auf Tastatur schreiben“ legt sie zusätzlich mit den übrigen Einstellungen im Profil ab."/>
           <Grid Margin="0,12,0,0">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="Auto"/>

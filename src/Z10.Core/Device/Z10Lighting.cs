@@ -91,7 +91,7 @@ public sealed class LightingState
 ///   90 P      Maske zurücklesen (GET)
 /// Block: [1] Spielmodus Win-Taste, [3]=0x30?, [4]=0x80|Modus, [5]=Helligkeit 0..10, [6]=Atmen,
 ///        [7..9] Displayfarbe R G B, [10..15] Spielmodus Alt+F4, Alt+Tab, Menü, Tab, Shift links, Strg+Esc.
-/// Unbekannte Bytes bleiben erhalten. Ein einzelnes 02 ohne 12 ändert die Farbe sofort, aber nicht dauerhaft.
+/// Unbekannte Bytes bleiben erhalten. Schon ein einzelnes 02 ohne 12 ändert die Farbe sofort und dauerhaft.
 /// Die Änderungen landen im Flash der Tastatur: nur bei Bedarf schreiben, nicht laufend.
 /// </summary>
 public static class Z10Lighting
@@ -182,8 +182,9 @@ public static class Z10Lighting
     }
 
     /// <summary>
-    /// Ändert nur die Displayfarbe des aktiven Profils, ohne zu speichern (wie die Blink-Funktion von Unleash).
-    /// Sofort sichtbar, nach dem Abziehen der Tastatur aber wieder weg. Dauert ca. 0,1 s.
+    /// Ändert nur die Displayfarbe des aktiven Profils, ohne die komplette Speichersequenz (wie die Blink-Funktion
+    /// von Unleash). Sofort sichtbar und – am Gerät geprüft – auch nach dem Abstecken noch da, landet also im
+    /// nichtflüchtigen Speicher: nicht für laufende Farbwechsel verwenden. Dauert ca. 0,1 s.
     /// </summary>
     public static void PreviewColor(IZ10Device dev, string color)
     {

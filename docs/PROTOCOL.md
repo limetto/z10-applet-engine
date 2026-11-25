@@ -92,8 +92,9 @@ Profilblock (Nutzdaten, einer pro Profil 1..5, laut `hid.exe` und am Gerät gepr
 | 7..9 | Farbe der Displaybeleuchtung R, G, B (Grün und Blau sind etwa doppelt so hell: Weiß ≈ `FF 7F 7F`, Gelb ≈ `FF 7F 00`; die App rechnet das um) |
 | 10..15 | Spielmodus: Alt+F4, Alt+Tab, Menütaste, Tab, Shift links, Strg+Esc sperren |
 
-Ein einzelnes `02 n` ohne `12` ändert die Displayfarbe sofort, aber nicht dauerhaft (so blinkt Unleash das Display
-rot/blau). Unbekannte Bytes werden unverändert zurückgeschrieben.
+Ein einzelnes `02 n` ohne `12` ändert die Displayfarbe sofort (so blinkt Unleash das Display rot/blau) – und die
+Farbe ist auch nach dem Abstecken noch da. `02` landet also im nichtflüchtigen Speicher; für laufend wechselnde
+Farben ist das ungeeignet. Unbekannte Bytes werden unverändert zurückgeschrieben.
 
 Tastenpositionen: Die Tabelle von `03` ordnet jeder Position (0..127) einen HID-Code zu, darüber ist die Maske
 entschlüsselt (Q = 8, W = 16, A = 10, S = 18, D = 26, Fn = 120 mit Code 0xAD, E-Tasten = 73, 74, 76, 78, 80, 125, 127 mit

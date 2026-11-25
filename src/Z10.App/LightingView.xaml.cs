@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -42,6 +43,7 @@ public partial class LightingView : UserControl
     private bool _dirty;
     private readonly DispatcherTimer _previewTimer;
     private string? _pendingPreview;
+    private bool _dragging;
 
     private static readonly (string Name, string Hex)[] Presets =
     {
@@ -83,7 +85,18 @@ public partial class LightingView : UserControl
             b.Click += (_, _) => SetColor(hex);
             PresetPanel.Children.Add(b);
         }
-        _previewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+        // Jede Vorschau landet dauerhaft im Speicher der Tastatur (am Gerät geprüft) → nicht beim Ziehen senden,
+        // sondern erst nach dem Loslassen bzw. nach einer kurzen Pause.
+        foreach (var slider in new[] { RSlider, GSlider, BSlider })
+        {
+            slider.AddHandler(Thumb.DragStartedEvent, new DragStartedEventHandler((_, _) => _dragging = true));
+            slider.AddHandler(Thumb.DragCompletedEvent, new DragCompletedEventHandler((_, _) =>
+            {
+                _dragging = false;
+                if (_config.DisplayColor is not null) SchedulePreview(_config.DisplayColor);
+            }));
+        }
+        _previewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
         _previewTimer.Tick += (_, _) => RunPreview();
 
         BuildKeyboard();
@@ -222,7 +235,7 @@ public partial class LightingView : UserControl
         _config.DisplayColor = $"#{rgb[0]:X2}{rgb[1]:X2}{rgb[2]:X2}";
         ShowColor();
         Changed();
-        SchedulePreview(_config.DisplayColor);
+        if (!_dragging) SchedulePreview(_config.DisplayColor);
     }
 
     private void Rgb_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -251,7 +264,7 @@ public partial class LightingView : UserControl
         Changed();
     }
 
-    /// <summary>Live-Vorschau: Farbe ohne Speichern an die Tastatur (gebündelt, max. ~7× pro Sekunde).</summary>
+    /// <summary>Vorschau: Farbe ohne die komplette Speichersequenz an die Tastatur (nach 0,6 s Ruhe bzw. nach dem Loslassen).</summary>
     private void SchedulePreview(string color)
     {
         if (_state.Engine.State != EngineState.Connected) return;
