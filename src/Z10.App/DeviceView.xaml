@@ -51,7 +51,24 @@
           <CheckBox x:Name="ReleaseOnExitBox" Content="Beim Beenden Display an die Tastatur zurückgeben" Click="Behavior_Click" Margin="0,12,0,4"/>
           <CheckBox x:Name="BootBox" Content="Startanimation (auf der Tastatur und im Startfenster)" Click="Behavior_Click"/>
           <CheckBox x:Name="AutoStartBox" Content="Mit Windows starten (über die Aufgabenplanung, ohne UAC-Abfrage)" Click="AutoStart_Click"/>
-          <CheckBox Content="Applets mit E6 / E7 wechseln (folgt später)" IsEnabled="False" Foreground="{StaticResource MutedBrush}"/>
+
+          <TextBlock Text="Tasten E6 / E7" Style="{StaticResource H2}" Margin="0,20,0,4"/>
+          <CheckBox x:Name="KeysBox" Content="E-Tasten auswerten" Click="Keys_Changed"/>
+          <Grid Margin="0,4,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="40"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition/>
+              <RowDefinition/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="E6" VerticalAlignment="Center" FontWeight="SemiBold"/>
+            <ComboBox x:Name="E6Box" Grid.Column="1" Margin="0,4" SelectionChanged="Keys_Changed"/>
+            <TextBlock Grid.Row="1" Text="E7" VerticalAlignment="Center" FontWeight="SemiBold"/>
+            <ComboBox x:Name="E7Box" Grid.Row="1" Grid.Column="1" Margin="0,4" SelectionChanged="Keys_Changed"/>
+          </Grid>
+          <TextBlock x:Name="KeysStatus" Style="{StaticResource Hint}" Margin="0,4,0,0" Text="–"/>
 
           <TextBlock Text="Weitere Datenquellen" Style="{StaticResource H2}" Margin="0,20,0,4"/>
           <CheckBox x:Name="RtssBox" Content="RTSS (Framerate, Frametime)" Click="Sources_Click"/>

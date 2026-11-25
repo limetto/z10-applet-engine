@@ -30,6 +30,26 @@ public sealed class Z10HidDevice : IZ10Device
     /// <summary>Sucht die Tastatur. Gibt null zurück, wenn sie nicht angeschlossen ist.</summary>
     public static Z10HidDevice? TryOpen()
     {
+        var (handle, path, version) = Find(caps =>
+            caps.UsagePage == Z10Protocol.VendorUsagePage && caps.FeatureReportByteLength == Z10Protocol.ReportLength);
+        return handle is null ? null : new Z10HidDevice(handle, path!, version);
+    }
+
+    /// <summary>Öffnet eine HID-Collection der Z10 nach Usage Page, z. B. 0xFF00 für Tastenereignisse.</summary>
+    public static (SafeFileHandle? Handle, int InputLength) OpenCollection(ushort usagePage, int minInputLength)
+    {
+        int length = 0;
+        var (handle, _, _) = Find(caps =>
+        {
+            if (caps.UsagePage != usagePage || caps.InputReportByteLength < minInputLength) return false;
+            length = caps.InputReportByteLength;
+            return true;
+        });
+        return (handle, length);
+    }
+
+    private static (SafeFileHandle? Handle, string? Path, ushort Version) Find(Func<Native.HIDP_CAPS, bool> match)
+    {
         foreach (var path in EnumerateHidPaths())
         {
             var handle = Native.CreateFile(path, Native.GENERIC_READ | Native.GENERIC_WRITE,
@@ -47,12 +67,8 @@ public sealed class Z10HidDevice : IZ10Device
             if (!Native.HidD_GetPreparsedData(handle, out var preparsed)) { handle.Dispose(); continue; }
             try
             {
-                if (Native.HidP_GetCaps(preparsed, out var caps) == Native.HIDP_STATUS_SUCCESS
-                    && caps.UsagePage == Z10Protocol.VendorUsagePage
-                    && caps.FeatureReportByteLength == Z10Protocol.ReportLength)
-                {
-                    return new Z10HidDevice(handle, path, attr.VersionNumber);
-                }
+                if (Native.HidP_GetCaps(preparsed, out var caps) == Native.HIDP_STATUS_SUCCESS && match(caps))
+                    return (handle, path, attr.VersionNumber);
             }
             finally
             {
@@ -60,7 +76,7 @@ public sealed class Z10HidDevice : IZ10Device
             }
             handle.Dispose();
         }
-        return null;
+        return (null, null, 0);
     }
 
     public void SendFeature(byte[] report)

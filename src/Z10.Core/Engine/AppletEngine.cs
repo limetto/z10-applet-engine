@@ -124,6 +124,32 @@ public sealed class AppletEngine : IDisposable
         }
     }
 
+    /// <summary>Führt die eingestellte Aktion einer E-Taste aus (nur beim Drücken, nicht beim Loslassen).</summary>
+    public void HandleKey(Device.Z10Keys.KeyEvent key)
+    {
+        if (!key.Pressed || !_settings.KeysEnabled) return;
+        var action = key.Code switch
+        {
+            Device.Z10Keys.E6 => _settings.E6Action,
+            Device.Z10Keys.E7 => _settings.E7Action,
+            _ => KeyAction.None,
+        };
+        LastKey = key.Name;
+        switch (action)
+        {
+            case KeyAction.Previous: Previous(); break;
+            case KeyAction.Next: Next(); break;
+            case KeyAction.TogglePause: Paused = !Paused; break;
+            case KeyAction.ToggleDisplay: SetSuspended(!Suspended); break;
+        }
+        KeyPressed?.Invoke(key, action);
+    }
+
+    /// <summary>Zuletzt gedrückte E-Taste (für die Anzeige in den Einstellungen).</summary>
+    public string? LastKey { get; private set; }
+
+    public event Action<Device.Z10Keys.KeyEvent, KeyAction>? KeyPressed;
+
     public void Next() => Step(+1);
     public void Previous() => Step(-1);
 

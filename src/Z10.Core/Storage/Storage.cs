@@ -17,6 +17,8 @@ public static class JsonDefaults
     };
 }
 
+public enum KeyAction { None, Previous, Next, TogglePause, ToggleDisplay }
+
 public sealed class AppSettings
 {
     public int Brightness { get; set; } = 5;
@@ -27,6 +29,11 @@ public sealed class AppSettings
     public bool StartMinimized { get; set; } = true;
     /// <summary>Startanimation auf der Tastatur und im Startfenster.</summary>
     public bool BootAnimation { get; set; } = true;
+
+    /// <summary>E-Tasten der Tastatur auswerten.</summary>
+    public bool KeysEnabled { get; set; } = true;
+    public KeyAction E6Action { get; set; } = KeyAction.Previous;
+    public KeyAction E7Action { get; set; } = KeyAction.Next;
     public bool RtssEnabled { get; set; } = true;
     public bool AfterburnerEnabled { get; set; } = true;
     public bool AudioEnabled { get; set; } = true;

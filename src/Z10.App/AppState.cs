@@ -25,6 +25,7 @@ public sealed class AppState : IDisposable
     public WpfTextRasterizer Text { get; } = new();
     public AppletEngine Engine { get; }
     public ImageLibrary Images { get; }
+    public Z10KeyListener Keys { get; }
 
     public event Action? AppletsChanged;
 
@@ -43,6 +44,8 @@ public sealed class AppState : IDisposable
         Engine = new AppletEngine(Sensors, Text, () => Z10HidDevice.TryOpen(), UnleashDetector.IsRunning, Settings);
         Engine.Renderer.Images = Images;
         Engine.SetApplets(Applets);
+        Keys = new Z10KeyListener();
+        Keys.KeyEvent += Engine.HandleKey;
     }
 
     public void SaveApplet(Applet applet)
@@ -121,6 +124,7 @@ public sealed class AppState : IDisposable
 
     public void Dispose()
     {
+        Keys.Dispose();
         Engine.Dispose();
         Sensors.Dispose();
     }

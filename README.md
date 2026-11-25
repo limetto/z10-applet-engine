@@ -12,6 +12,7 @@ Die Applets setzt du im Layout-Editor aus Bausteinen zusammen. Die Werte kommen 
 ## Funktionen
 
 - **Applet-Rotation** mit eigener Anzeigedauer und Aktualisierung pro Applet; Rotation anhalten, vor und zurück blättern
+- **Tasten E6/E7** an der Tastatur: standardmäßig voriges und nächstes Applet, belegbar mit Rotation anhalten oder Display freigeben
 - **Layout-Editor** mit Pixelraster, Ziehen mit der Maus, Pfeiltasten und Ebenenliste
 - **Bausteine:** Text, Sensorwert (mit Format wie `{value/1000:0.0} GHz`), Balken, Verlauf, Uhr/Datum, Symbol
 - **Symbole:** über 60 eingebaute Pixel-Symbole (8 × 8 und 16 × 16) mit Vorschau in der Auswahl, dazu **eigene Grafiken und animierte GIFs** per Import (Schwellwert, Rasterung, Invertieren, Größe)
@@ -132,6 +133,3 @@ tests/Z10.Core.Tests  Tests ohne externe Pakete: dotnet run --project tests/Z10.
 
 GitHub Actions baut bei jedem Push eine selbstständige EXE (win-x64, keine .NET-Installation nötig). Ein Tag `v*` erzeugt ein Release.
 
-### Noch offen
-
-- Applets mit den Tasten E6/E7 wechseln (Tastenereignisse noch nicht erforscht)

@@ -453,6 +453,37 @@ var tests = new List<(string Name, Action Body)>
         Eq(null, new ImageLibrary(dir).Get("Mein-Bild"));
         Directory.Delete(dir, true);
     }),
+    ("E-Tasten: Reports auswerten und Aktionen ausführen", () =>
+    {
+        byte[] R(params int[] b) => b.Select(x => (byte)x).ToArray();
+        var e6 = Z10Keys.Parse(R(0x09, 0xE2, 0x0F, 0x05, 0x03, 0x01, 0, 0, 0));
+        Eq(Z10Keys.E6, e6?.Code); Eq(true, e6?.Pressed); Eq("E6", e6?.Name);
+        var e7up = Z10Keys.Parse(R(0x09, 0xE2, 0x0F, 0x07, 0x03, 0x00, 0, 0, 0));
+        Eq(Z10Keys.E7, e7up?.Code); Eq(false, e7up?.Pressed);
+        Eq(null, Z10Keys.Parse(R(0x09, 0x00, 0x00, 0x21, 0, 0, 0, 0, 0)));   // Quittung für Display-Seiten
+        Eq(null, Z10Keys.Parse(R(0x01, 0, 0, 0, 0, 0, 0, 0)));
+
+        var dev = new FakeDevice();
+        var settings = new AppSettings();
+        var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => dev, () => false, settings);
+        e.SetApplets(DefaultApplets.Create());
+        var t = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        e.Tick(t);
+        Eq("CPU", e.Current?.Name);
+        e.HandleKey(e7up!.Value with { Pressed = true }); e.Tick(t.AddSeconds(0.2));
+        Eq("GPU", e.Current?.Name);
+        e.HandleKey(e7up!.Value); e.Tick(t.AddSeconds(0.4));                // Loslassen: nichts
+        Eq("GPU", e.Current?.Name);
+        e.HandleKey(e6!.Value); e.Tick(t.AddSeconds(0.6));
+        Eq("CPU", e.Current?.Name);
+        Eq("E6", e.LastKey);
+        settings.E6Action = KeyAction.TogglePause;
+        e.HandleKey(e6!.Value);
+        True(e.Paused, "Pause nicht umgeschaltet");
+        settings.KeysEnabled = false;
+        e.HandleKey(e6!.Value);
+        True(e.Paused, "Tasten trotz Abschaltung ausgewertet");
+    }),
 };
 
 int failed = 0;

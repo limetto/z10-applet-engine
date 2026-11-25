@@ -7,12 +7,21 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using Z10.Core.Sensors;
+using Z10.Core.Storage;
 
 namespace Z10.App;
 
 public partial class DeviceView : UserControl
 {
     private static readonly int[] Delays = { 10, 20, 50, 100 };
+    private static readonly (KeyAction Action, string Label)[] KeyActions =
+    {
+        (KeyAction.None, "nichts"),
+        (KeyAction.Previous, "vorheriges Applet"),
+        (KeyAction.Next, "nächstes Applet"),
+        (KeyAction.TogglePause, "Rotation anhalten / fortsetzen"),
+        (KeyAction.ToggleDisplay, "Display freigeben / übernehmen"),
+    };
     private readonly AppState _state;
     private readonly DispatcherTimer _timer;
     private bool _loading = true;
@@ -31,6 +40,11 @@ public partial class DeviceView : UserControl
         DelayBox.SelectedIndex = Math.Max(0, Array.IndexOf(Delays, s.PageDelayMs));
         ReleaseOnExitBox.IsChecked = s.ReleaseOnExit;
         BootBox.IsChecked = s.BootAnimation;
+        foreach (var k in KeyActions) { E6Box.Items.Add(k.Label); E7Box.Items.Add(k.Label); }
+        KeysBox.IsChecked = s.KeysEnabled;
+        E6Box.SelectedIndex = Math.Max(0, Array.FindIndex(KeyActions, k => k.Action == s.E6Action));
+        E7Box.SelectedIndex = Math.Max(0, Array.FindIndex(KeyActions, k => k.Action == s.E7Action));
+        _state.Engine.KeyPressed += (_, _) => Dispatcher.BeginInvoke(Refresh);
         AutoStartBox.IsChecked = AutoStart.IsEnabled();
         RtssBox.IsChecked = s.RtssEnabled;
         AfterburnerBox.IsChecked = s.AfterburnerEnabled;
@@ -70,6 +84,9 @@ public partial class DeviceView : UserControl
         AudioStatus.Text = !_state.Settings.AudioEnabled ? "ausgeschaltet"
             : _state.Audio.Error is string ae ? "Fehler: " + ae
             : vol is double volPct ? $"Standardgerät: {volPct.ToString("0", c)} %{(muted ? " (stumm)" : "")} · Sensoren unter /audio/…" : "kein Wiedergabegerät gefunden";
+        KeysStatus.Text = !_state.Settings.KeysEnabled ? "ausgeschaltet"
+            : !_state.Keys.IsConnected ? "Tastenkanal nicht verbunden"
+            : _state.Engine.LastKey is string last ? $"bereit · zuletzt gedrückt: {last}" : "bereit · drück E6 oder E7 zum Testen";
         UpdateCustomResult();
         if (!IsVisible) return;
 
@@ -133,6 +150,16 @@ public partial class DeviceView : UserControl
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         AutoStartBox.IsChecked = AutoStart.IsEnabled();
+    }
+
+    private void Keys_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _state.Settings.KeysEnabled = KeysBox.IsChecked == true;
+        if (E6Box.SelectedIndex >= 0) _state.Settings.E6Action = KeyActions[E6Box.SelectedIndex].Action;
+        if (E7Box.SelectedIndex >= 0) _state.Settings.E7Action = KeyActions[E7Box.SelectedIndex].Action;
+        _state.SaveSettings();
+        Refresh();
     }
 
     private void Sources_Click(object sender, RoutedEventArgs e)

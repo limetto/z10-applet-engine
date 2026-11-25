@@ -47,3 +47,16 @@ Helligkeit: Stufe 1..5 → 0..4
 ```
 
 Wirkt sofort und wird nicht dauerhaft gespeichert. Die Farbe des Displays wird nur an der Tastatur mit FN umgeschaltet.
+
+## Tastenereignisse (E-Tasten)
+
+Kommen als **Input-Report 9** über die Collection mit Usage Page `0xFF00` (Interface 2, Interrupt-Endpoint `0x83`):
+
+```
+09 E2 0F <Taste> 03 <Zustand> 00 00 00
+Taste:   0x05 = E6, 0x07 = E7
+Zustand: 01 = gedrückt, 00 = losgelassen
+```
+
+Nach dem Loslassen folgt noch ein leerer Report 1 (`01 00 …`). Unter Windows lässt sich die Collection ohne Treiber mit `ReadFile` lesen.
+Während die Display-Seiten geschrieben werden, quittiert die Tastatur jede Seite mit `09 00 00 21 …`.
