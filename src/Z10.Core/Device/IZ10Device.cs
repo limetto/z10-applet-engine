@@ -14,6 +14,9 @@ public interface IZ10Device : IDisposable
 
     /// <summary>Sendet einen Report (264 Byte). Wirft IOException bei Fehler.</summary>
     void SendFeature(byte[] report);
+
+    /// <summary>Liest Feature-Report 7 (264 Byte inkl. Report-ID). Wirft IOException bei Fehler.</summary>
+    byte[] GetFeature();
 }
 
 /// <summary>Schickt Framebuffer an die Tastatur und überspringt unveränderte Seiten.</summary>

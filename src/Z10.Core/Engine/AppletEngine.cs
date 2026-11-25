@@ -191,7 +191,8 @@ public sealed class AppletEngine : IDisposable
     public void Stop()
     {
         _running = false;
-        _thread?.Join(TimeSpan.FromSeconds(3));
+        // Ein laufender Beleuchtungs-Schreibvorgang darf nicht abgebrochen werden (Flash)
+        _thread?.Join(DeviceBusy ? TimeSpan.FromSeconds(30) : TimeSpan.FromSeconds(3));
         _thread = null;
         _sensorThread?.Join(TimeSpan.FromSeconds(3));
         _sensorThread = null;
@@ -227,13 +228,102 @@ public sealed class AppletEngine : IDisposable
         {
             if (Suspended == suspended) return;
             Suspended = suspended;
-            if (suspended) { try { _display?.Release(); } catch (IOException) { } }
+            if (suspended && DeviceBusy) _releaseAfterJob = true;
+            else if (suspended) { try { _display?.Release(); } catch (IOException) { } }
             else { _display?.Invalidate(); _firstFrame = true; _nextRender = DateTime.MinValue; }
         }
         StatusChanged?.Invoke();
     }
 
     public void Dispose() => Stop();
+
+    private readonly object _jobLock = new();
+    private (Func<IZ10Device, object?> Run, string Message, TaskCompletionSource<object?> Done)? _job;
+    private bool _releaseAfterJob;
+
+    /// <summary>true, solange ein Gerätebefehl (z. B. Beleuchtung schreiben) läuft. Die Anzeige steht so lange.</summary>
+    public bool DeviceBusy { get; private set; }
+
+    /// <summary>
+    /// Führt einen längeren Gerätebefehl im Engine-Thread aus. Die Anzeige wird währenddessen angehalten und zeigt
+    /// <paramref name="lcdMessage"/>. Schlägt mit IOException fehl, wenn die Tastatur nicht verbunden ist.
+    /// </summary>
+    public async Task<T> RunDeviceJob<T>(Func<IZ10Device, T> job, string lcdMessage)
+    {
+        var done = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        lock (_jobLock)
+        {
+            if (_job is not null || DeviceBusy) throw new InvalidOperationException("Es läuft bereits ein Gerätebefehl.");
+            _job = (d => job(d), lcdMessage, done);
+        }
+        if (_thread is null) RunPendingJob();     // ohne Start() (Tests)
+        return (T)(await done.Task)!;
+    }
+
+    private void RunPendingJob()
+    {
+        (Func<IZ10Device, object?> Run, string Message, TaskCompletionSource<object?> Done) job;
+        lock (_jobLock)
+        {
+            if (_job is null) return;
+            job = _job.Value;
+            _job = null;
+            DeviceBusy = true;
+        }
+
+        Z10Display? display;
+        string oldText;
+        lock (_lock)
+        {
+            display = _display;
+            oldText = StatusText;
+            if (display is not null && !Suspended) TryDevice(() => display.Show(MessageFrame(job.Message)));
+            display = _display;
+        }
+
+        try
+        {
+            if (display is null) throw new IOException("Die Tastatur ist nicht verbunden.");
+            SetStatus(State, job.Message);
+            job.Done.SetResult(job.Run(display.Device));
+        }
+        catch (Exception ex)
+        {
+            job.Done.SetException(ex);
+        }
+        finally
+        {
+            lock (_lock)
+            {
+                DeviceBusy = false;
+                if (_display is not null)
+                {
+                    _display.Invalidate();
+                    _backlightDirty = true;
+                    _firstFrame = true;
+                    if (_releaseAfterJob && Suspended) { try { _display.Release(); } catch (IOException) { } }
+                }
+                _releaseAfterJob = false;
+                _nextRender = DateTime.MinValue;
+            }
+            if (StatusText == job.Message) SetStatus(State, oldText);
+        }
+    }
+
+    private static Framebuffer MessageFrame(string message)
+    {
+        var fb = new Framebuffer();
+        var font = PixelFont.Default;
+        var lines = message.Split('\n');
+        int y = (Z10Protocol.Height - lines.Length * 9 + 2) / 2;
+        foreach (var line in lines)
+        {
+            var bmp = font.Render(line);
+            fb.Blit(bmp, (Z10Protocol.Width - bmp.Width) / 2, y);
+            y += 9;
+        }
+        return fb;
+    }
 
     /// <summary>Ein Durchlauf der Schleife. Öffentlich für Tests.</summary>
     public void Tick(DateTime utcNow)
@@ -251,6 +341,7 @@ public sealed class AppletEngine : IDisposable
     {
         while (_running)
         {
+            RunPendingJob();
             try { Tick(DateTime.UtcNow); }
             catch (Exception ex) { SetStatus(EngineState.Error, "Fehler: " + ex.Message); }
             Thread.Sleep(50);

@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     private readonly AppletsView _applets;
     private readonly EditorView _editor;
     private readonly DeviceView _device;
+    private readonly LightingView _lighting;
     private readonly DispatcherTimer _statusTimer;
 
     public MainWindow(AppState state)
@@ -24,10 +25,12 @@ public partial class MainWindow : Window
         _applets = new AppletsView(state);
         _editor = new EditorView(state);
         _device = new DeviceView(state);
+        _lighting = new LightingView(state);
         _applets.EditRequested += OpenEditor;
         ContentHost.Children.Add(_applets);
         ContentHost.Children.Add(_editor);
         ContentHost.Children.Add(_device);
+        ContentHost.Children.Add(_lighting);
         ShowView(_applets);
 
         _state.Engine.StatusChanged += () => Dispatcher.BeginInvoke(UpdateStatus);
@@ -48,6 +51,7 @@ public partial class MainWindow : Window
         if (_applets is null) return;    // während InitializeComponent
         if (sender == NavApplets) ShowView(_applets);
         else if (sender == NavEditor) ShowView(_editor);
+        else if (sender == NavLighting) ShowView(_lighting);
         else ShowView(_device);
     }
 
@@ -57,6 +61,7 @@ public partial class MainWindow : Window
             child.Visibility = child == view ? Visibility.Visible : Visibility.Collapsed;
         if (view != _editor) _editor.LeaveLive();
         else _editor.EnterLive();
+        if (view == _lighting) _lighting.OnShown();
     }
 
     private void UpdateStatus()

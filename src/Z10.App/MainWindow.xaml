@@ -44,6 +44,7 @@
         <StackPanel>
           <RadioButton x:Name="NavApplets" Style="{StaticResource NavButton}" GroupName="nav" IsChecked="True" Checked="Nav_Checked" Content="Applets"/>
           <RadioButton x:Name="NavEditor" Style="{StaticResource NavButton}" GroupName="nav" Checked="Nav_Checked" Content="Layout-Editor"/>
+          <RadioButton x:Name="NavLighting" Style="{StaticResource NavButton}" GroupName="nav" Checked="Nav_Checked" Content="Beleuchtung"/>
           <RadioButton x:Name="NavDevice" Style="{StaticResource NavButton}" GroupName="nav" Checked="Nav_Checked" Content="Gerät &amp; Sensoren"/>
         </StackPanel>
       </Border>

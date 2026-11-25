@@ -60,3 +60,33 @@ Zustand: 01 = gedrückt, 00 = losgelassen
 
 Nach dem Loslassen folgt noch ein leerer Report 1 (`01 00 …`). Unter Windows lässt sich die Collection ohne Treiber mit `ReadFile` lesen.
 Während die Display-Seiten geschrieben werden, quittiert die Tastatur jede Seite mit `09 00 00 21 …`.
+
+## Tastenbeleuchtung
+
+Aus USBPcap-Mitschnitten von EVGA Unleash. Alle Befehle sind Feature-Reports 7 (264 Byte), Nutzdaten ab Byte 8.
+„GET“ heißt: Befehl per SET_REPORT senden, danach Report 7 per GET_REPORT lesen (Antwort beginnt mit `07 <Befehl>`).
+
+| Befehl | Richtung | Bedeutung |
+|---|---|---|
+| `81` | GET | Status: `07 81 <aktives Profil> 00 00 01` |
+| `01 P` | SET | Profil P öffnen |
+| `10 P` + 256 Byte | SET | Tastenmaske, 1 Byte pro Position (01 = an), nur im Modus „Customize“ wirksam |
+| `82 n` | GET | Profilblock n (1..5) lesen |
+| `02 n` + 256 Byte | SET | Profilblock n schreiben |
+| `03 P` + 256 Byte | SET | Tastenbelegung Position → HID-Code (immer dieselbe Tabelle) |
+| `12 P` | SET | Speichern (Flash, ca. 3 s) |
+| `90 P` | GET | Tastenmaske von Profil P lesen |
+
+Unleash schreibt: `81`, `01 P`, `10 P`, fünfmal `82 n` + `02 n`, ~9 × `81` (Polling), `03 P`, `12 P`, `90 P`.
+Die Änderung wird erst am Ende sichtbar; Unleash zeigt währenddessen „APPLYING DRIVER“ auf dem LCD.
+
+Profilblock (Nutzdaten): `[3]` 0x30 (nur aktives Profil, Bedeutung offen), `[4]` 0x80 | Modus
+(0 = alle Tasten, 1 = Customize, 2 = Trigger, 3 = Explosion), `[5]` Helligkeit 0..10 (0 = aus, Unleash setzt sie in allen
+Blöcken), `[6]` Atmen (01), `[7]` 0xFF (nur aktives Profil). Unbekannte Bytes werden unverändert zurückgeschrieben.
+
+Tastenpositionen: Die Tabelle von `03` ordnet jeder Position (0..127) einen HID-Code zu, darüber ist die Maske
+entschlüsselt (Q = 8, W = 16, A = 10, S = 18, D = 26, Fn = 120 mit Code 0xAD, E-Tasten = 73, 74, 76, 78, 80, 125, 127 mit
+Code 0xD8). Beleuchtet sind 110 Positionen. `<>` (19) und `#'` (68) der deutschen Tastatur haben keine LED; Unleashs
+„Alle“ setzt stattdessen den US-Backslash (82), den es auf der deutschen Tastatur nicht gibt.
+Positionen 128..255 sind immer 0. Das Layout steht in `src/Z10.Core/Device/Z10KeyLayout.cs`, ein Testskript in
+`tools/z10light.py`.

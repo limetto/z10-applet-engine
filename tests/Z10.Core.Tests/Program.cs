@@ -484,6 +484,70 @@ var tests = new List<(string Name, Action Body)>
         e.HandleKey(e6!.Value);
         True(e.Paused, "Tasten trotz Abschaltung ausgewertet");
     }),
+
+    ("Tastenlayout: Positionen passen zu den Mitschnitten", () =>
+    {
+        Eq(256, Z10Lighting.KeyTable.Length);
+        var all = Z10KeyLayout.Keys;
+        Eq(all.Count, all.Select(k => k.Position).Distinct().Count());
+        Eq(8, all.Single(k => k.Label == "Q").Position);
+        Seq(new[] { 10, 16, 18, 26 }, Z10KeyLayout.Groups.Single(g => g.Name == "WASD").Positions.OrderBy(p => p).ToList());
+        Eq(120, all.Single(k => k.Label == "Fn").Position);
+        Eq(19, all.Single(k => k.Label == "<").Position);
+        Eq(68, all.Single(k => k.Label == "#").Position);
+        // "Alle an" von Unleash (US) = unsere beleuchteten Tasten + US-Backslash (82)
+        int[] unleashAll = { 0, 4, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 20, 22, 23, 24, 25, 26, 27, 28, 30, 31, 32, 33, 34,
+            35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 54, 55, 56, 57, 58, 60, 61, 62, 63, 64, 65, 66,
+            67, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 96, 97, 98,
+            99, 100, 101, 102, 104, 105, 106, 107, 108, 109, 110, 111, 112, 114, 115, 117, 118, 119, 120, 121, 122, 124, 125, 127 };
+        Seq(unleashAll.Where(p => p != 82).ToArray(), Z10KeyLayout.AllLit.ToList());
+        Eq(110, Z10KeyLayout.Groups.Single(g => g.Name == "Alle").Positions.Count);
+        Eq(17, Z10KeyLayout.Groups.Single(g => g.Name == "Ziffernblock").Positions.Count);
+    }),
+
+    ("Beleuchtung schreiben: Sequenz wie Unleash, unbekannte Bytes bleiben", () =>
+    {
+        Z10Lighting.CommandDelay = TimeSpan.Zero;
+        Z10Lighting.SaveDelay = TimeSpan.Zero;
+        var dev = new FakeDevice();
+        var kb = new FakeLightingKeyboard(dev);
+        var cfg = new LightingConfig { Effect = LightingEffect.Customize, Brightness = 7, Keys = new() { 8, 10, 16, 18, 26 } };
+        var state = Z10Lighting.Write(dev, cfg);
+        var cmds = dev.Reports.Select(r => r[1]).Where(c => c is not 0x81 and not 0x82 and not 0x90).ToList();
+        Seq(new[] { 0x01, 0x10, 0x02, 0x02, 0x02, 0x02, 0x02, 0x03, 0x12 }, cmds.Select(c => (int)c).ToList());
+        var b1 = kb.Blocks[0];
+        Eq((byte)0x30, b1[3]); Eq((byte)0x81, b1[4]); Eq((byte)7, b1[5]); Eq((byte)0, b1[6]); Eq((byte)0xFF, b1[7]);
+        Eq((byte)7, kb.Blocks[4][5]);            // Helligkeit in allen Blöcken
+        Eq((byte)0x00, kb.Blocks[4][4]);         // fremder Block behält seinen Modus
+        Eq((byte)0x42, kb.Blocks[0][100]);       // unbekannte Bytes bleiben
+        Eq(LightingEffect.Customize, state.ToConfig().Effect);
+        Seq(new[] { 8, 10, 16, 18, 26 }, state.ToConfig().Keys);
+
+        Z10Lighting.Write(dev, new LightingConfig { Effect = LightingEffect.Breathing, Brightness = 3 });
+        Eq((byte)0x80, kb.Blocks[0][4]); Eq((byte)1, kb.Blocks[0][6]);
+        Eq(LightingEffect.Breathing, Z10Lighting.Read(dev).ToConfig().Effect);
+        Z10Lighting.Write(dev, new LightingConfig { Effect = LightingEffect.Off });
+        Eq((byte)0, kb.Blocks[0][5]);
+        Eq(LightingEffect.Off, Z10Lighting.Read(dev).ToConfig().Effect);
+    }),
+
+    ("Engine: Gerätebefehl hält die Anzeige an und meldet Fehler ohne Tastatur", () =>
+    {
+        var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => null, () => false, new AppSettings());
+        e.Tick(DateTime.UtcNow);
+        var t = e.RunDeviceJob(d => 1, "Test");
+        True(t.IsFaulted && t.Exception!.InnerException is IOException, "Fehler ohne Tastatur erwartet");
+
+        var dev = new FakeDevice();
+        var e2 = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => dev, () => false,
+            new AppSettings { BootAnimation = false });
+        e2.Tick(DateTime.UtcNow);
+        dev.Reports.Clear();
+        var r = e2.RunDeviceJob(d => { d.SendFeature(new byte[264]); return 42; }, "Beleuchtung wird\ngespeichert …");
+        Eq(42, r.Result);
+        True(dev.Pages.Count == 4, "Meldung nicht auf dem LCD angezeigt");
+        True(!e2.DeviceBusy, "Gerät bleibt belegt");
+    }),
 };
 
 int failed = 0;
@@ -530,10 +594,52 @@ sealed class FakeDevice : IZ10Device
     public bool IsOpen => true;
     public string Description => "Testgerät";
     public TimeSpan PageDelay { get; set; } = TimeSpan.Zero;
+    public Action<byte[]>? OnSend { get; set; }
     public void SendFeature(byte[] report)
     {
         Reports.Add(report);
+        OnSend?.Invoke(report);
         if (report[1] == 0x21 && report[2] < 4) Pages.Add(report[2]);
     }
+    public Func<byte[]>? OnGet { get; set; }
+    public byte[] GetFeature() => OnGet?.Invoke() ?? throw new IOException("kein GET");
     public void Dispose() { }
+}
+
+/// <summary>Simuliert die Beleuchtungsbefehle der Tastatur.</summary>
+sealed class FakeLightingKeyboard
+{
+    public byte[][] Blocks { get; } = new byte[5][];
+    public byte[] Mask { get; } = new byte[256];
+    private byte[]? _pendingMask;
+    private byte _lastCmd, _lastArg;
+
+    public FakeLightingKeyboard(FakeDevice dev)
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            Blocks[i] = new byte[256];
+            Blocks[i][4] = (byte)(i == 4 ? 0x00 : 0x80);
+            Blocks[i][5] = 5;
+            Blocks[i][100] = 0x42;
+        }
+        Blocks[0][3] = 0x30; Blocks[0][7] = 0xFF;
+        dev.OnSend = r =>
+        {
+            _lastCmd = r[1]; _lastArg = r[2];
+            var payload = r[8..];
+            if (r[1] == 0x10) _pendingMask = payload;
+            if (r[1] == 0x02) Blocks[r[2] - 1] = payload;
+            if (r[1] == 0x12 && _pendingMask is not null) _pendingMask.CopyTo(Mask, 0);
+        };
+        dev.OnGet = () =>
+        {
+            var r = new byte[264];
+            r[0] = 7; r[1] = _lastCmd; r[2] = _lastArg;
+            if (_lastCmd == 0x81) { r[2] = 1; r[5] = 1; }
+            if (_lastCmd == 0x82) Blocks[_lastArg - 1].CopyTo(r, 8);
+            if (_lastCmd == 0x90) Mask.CopyTo(r, 8);
+            return r;
+        };
+    }
 }

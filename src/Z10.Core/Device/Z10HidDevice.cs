@@ -87,6 +87,16 @@ public sealed class Z10HidDevice : IZ10Device
             throw new IOException("HidD_SetFeature fehlgeschlagen.", new Win32Exception(Marshal.GetLastWin32Error()));
     }
 
+    public byte[] GetFeature()
+    {
+        if (_handle is null || !IsOpen) throw new IOException("Z10 ist nicht verbunden.");
+        var buf = new byte[Z10Protocol.ReportLength];
+        buf[0] = Z10Protocol.ReportId;
+        if (!Native.HidD_GetFeature(_handle, buf, buf.Length))
+            throw new IOException("HidD_GetFeature fehlgeschlagen.", new Win32Exception(Marshal.GetLastWin32Error()));
+        return buf;
+    }
+
     public void Dispose()
     {
         _handle?.Dispose();
@@ -205,6 +215,10 @@ public sealed class Z10HidDevice : IZ10Device
         [DllImport("hid.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.U1)]
         public static extern bool HidD_SetFeature(SafeFileHandle device, byte[] buffer, int bufferLength);
+
+        [DllImport("hid.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.U1)]
+        public static extern bool HidD_GetFeature(SafeFileHandle device, byte[] buffer, int bufferLength);
 
         [DllImport("setupapi.dll", SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "SetupDiGetClassDevsW")]
         public static extern IntPtr SetupDiGetClassDevs(ref Guid classGuid, IntPtr enumerator, IntPtr hwndParent, int flags);

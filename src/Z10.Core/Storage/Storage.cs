@@ -38,6 +38,9 @@ public sealed class AppSettings
     public bool AfterburnerEnabled { get; set; } = true;
     public bool AudioEnabled { get; set; } = true;
     public List<CustomSensor> CustomSensors { get; set; } = new();
+
+    /// <summary>Zuletzt bearbeitete Tastenbeleuchtung (wird nur auf Knopfdruck an die Tastatur geschrieben).</summary>
+    public Device.LightingConfig? Lighting { get; set; }
 }
 
 /// <summary>Speichert Applets als einzelne JSON-Dateien und die Einstellungen in settings.json.</summary>
