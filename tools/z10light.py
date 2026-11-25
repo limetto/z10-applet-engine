@@ -8,7 +8,9 @@ Bildet die Schreibsequenz von EVGA Unleash nach (aus den USBPcap-Mitschnitten 05
   01 P          Profil P öffnen
   10 P + Maske  256 Byte, 1 Byte pro Tastenposition (01 = an), nur Modus "Customize"
   82 n / 02 n   Profilblöcke 1..5 lesen und zurückschreiben
-                Block: [11]=0x30? [12]=0x80|Modus [13]=Helligkeit 0..10 [14]=Atmen [15]=0xFF?
+                Block (Nutzdaten ab Byte 8): [1] Spielmodus Win-Taste  [3] 0x30?  [4] 0x80|Modus
+                [5] Helligkeit 0..10  [6] Atmen  [7..9] Displayfarbe R G B? (wird hier getestet)
+                [10] Alt+F4  [11] Alt+Tab  [12] Menütaste  [13] Tab  [14] Shift links  [15] Strg+Esc
                 Modus: 0 = alle Tasten, 1 = Customize (Maske), 2 = Trigger, 3 = Explosion
   81 (Polling)  warten, bis die Tastatur bereit ist
   03 P + Tabelle  Tastenbelegung Position -> HID-Code (unverändert, wie Unleash)
@@ -21,6 +23,13 @@ Befehle:
   all-de      alle Tasten inkl. <> und #' (Customize-Modus)
   keys POS…   beliebige Positionen einschalten, z. B.  keys 8 10 16 18 26
   restore     Stand von vor dem ersten Schreiben wiederherstellen (Sicherung z10light_backup.json)
+
+Displayfarbe (Vermutung: Block-Bytes 7..9 = R G B, Werte 0..255):
+  color-test R G B   Farbe NUR per 02 senden (ohne Speichern, wie Unleashs Blink-Funktion),
+                     5 s halten, dann alten Block zurückschreiben. Speichert nichts.
+  blink              Unleashs Blink-Funktion nachstellen: 5x Rot/Blau im Wechsel, dann zurück.
+  color R G B [P]    Farbe dauerhaft ins Profil P schreiben (Standard: aktives Profil), komplette
+                     Unleash-Sequenz mit Speichern. Tastenmaske und Effekt bleiben unverändert.
 
 Vorher EVGA Unleash UND die Z10 Applet Engine beenden.
 Abhängigkeit:  pip install hidapi
@@ -153,8 +162,71 @@ class Z10Light:
 
 def describe_block(b: bytes) -> str:
     mode = b[4] & 0x7F
-    return (f"{b[:8].hex(' ')}  -> Modus {mode} ({MODE_NAMES.get(mode, '?')}), "
-            f"Helligkeit {b[5]}/10, Atmen {b[6]}")
+    game = [name for i, name in ((1, "Win"), (10, "Alt+F4"), (11, "Alt+Tab"), (12, "Menü"), (13, "Tab"),
+                                 (14, "Shift L"), (15, "Strg+Esc")) if b[i]]
+    return (f"{b[:16].hex(' ')}  -> Modus {mode} ({MODE_NAMES.get(mode, '?')}), "
+            f"Helligkeit {b[5]}/10, Atmen {b[6]}, Farbe? {b[7]:02X}{b[8]:02X}{b[9]:02X}"
+            + (f", Spielmodus: {', '.join(game)}" if game else ""))
+
+
+def parse_rgb(args: list[str]) -> bytes:
+    if len(args) < 3:
+        sys.exit("Bitte drei Werte R G B angeben (0..255 oder 0x..).")
+    vals = [int(a, 0) for a in args[:3]]
+    if any(not 0 <= v <= 255 for v in vals):
+        sys.exit("Werte müssen zwischen 0 und 255 liegen.")
+    return bytes(vals)
+
+
+def send_block(z: Z10Light, n: int, block: bytes):
+    z.set(0x02, n, block)
+    time.sleep(0.1)
+
+
+def color_test(z: Z10Light, rgb: bytes):
+    profile = z.status()[2]
+    original = z.read_block(profile)
+    print(f"Profil {profile}, Block vorher: {describe_block(original)}")
+    blk = bytearray(original)
+    blk[7:10] = rgb
+    print(f"Sende Farbe {rgb.hex(' ').upper()} (nur 02, ohne Speichern) …")
+    send_block(z, profile, bytes(blk))
+    time.sleep(5)
+    print("Schreibe alten Block zurück.")
+    send_block(z, profile, original)
+    print("Fertig. Hat sich die Displayfarbe für 5 Sekunden geändert?")
+
+
+def blink(z: Z10Light):
+    # wie hid.exe 0x404960: 82 n lesen, 5x 02 n mit [7]=FF bzw. [9]=FF im Wechsel, dann Original
+    profile = z.status()[2]
+    original = z.read_block(profile)
+    print(f"Profil {profile}: blinke 5x Rot/Blau …")
+    for i in range(5):
+        blk = bytearray(original)
+        blk[7] = 0xFF if i % 2 == 0 else 0
+        blk[8] = 0
+        blk[9] = 0xFF if i % 2 == 1 else 0
+        send_block(z, profile, bytes(blk))
+        time.sleep(0.6)
+    send_block(z, profile, original)
+    print("Fertig.")
+
+
+def color_save(z: Z10Light, rgb: bytes, target=None):
+    profile, blocks, mask = read_state(z)
+    print("Vorher:"); print_state(profile, blocks, mask)
+    save_backup(profile, blocks, mask)
+    target = target or profile
+    if not 1 <= target <= 5:
+        sys.exit("Profil muss 1..5 sein.")
+    blk = bytearray(blocks[target])
+    blk[7:10] = rgb
+    blocks = dict(blocks); blocks[target] = bytes(blk)
+    print(f"Schreibe Farbe {rgb.hex(' ').upper()} in Profil {target} …")
+    z.write_profile(profile, mask, blocks)
+    after = z.read_block(target)
+    print(f"Block {target} danach: {describe_block(after)}")
 
 
 def read_state(z: Z10Light):
@@ -219,7 +291,8 @@ def restore(z: Z10Light):
 
 
 def main():
-    if len(sys.argv) < 2 or sys.argv[1] not in ("read", "test-iso", "all-de", "keys", "restore"):
+    if len(sys.argv) < 2 or sys.argv[1] not in ("read", "test-iso", "all-de", "keys", "restore",
+                                                 "color-test", "blink", "color"):
         print(__doc__); sys.exit(1)
     cmd = sys.argv[1]
     z = Z10Light()
@@ -234,6 +307,12 @@ def main():
             apply_mask(z, [int(a) for a in sys.argv[2:]])
         elif cmd == "restore":
             restore(z)
+        elif cmd == "color-test":
+            color_test(z, parse_rgb(sys.argv[2:]))
+        elif cmd == "blink":
+            blink(z)
+        elif cmd == "color":
+            color_save(z, parse_rgb(sys.argv[2:]), int(sys.argv[5]) if len(sys.argv) > 5 else None)
     finally:
         z.close()
 
