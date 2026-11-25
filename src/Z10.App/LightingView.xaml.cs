@@ -44,6 +44,9 @@ public partial class LightingView : UserControl
     {
         _state = state;
         _config = state.Settings.Lighting?.Clone() ?? new LightingConfig { Keys = Z10KeyLayout.AllLit.ToList() };
+        // Der Slider meldet schon in InitializeComponent eine Wertänderung (Minimum 1), da gibt es die
+        // übrigen Steuerelemente noch nicht → bis zum Ende des Konstruktors keine Änderungen verarbeiten.
+        _loading = true;
         InitializeComponent();
 
         foreach (var (_, name) in Effects) EffectBox.Items.Add(name);
@@ -61,6 +64,7 @@ public partial class LightingView : UserControl
         GroupPanel.Children.Add(invert);
 
         BuildKeyboard();
+        _loading = false;
         ShowConfig();
         StatusText.Text = state.Settings.Lighting is null
             ? "Noch nicht von der Tastatur gelesen."

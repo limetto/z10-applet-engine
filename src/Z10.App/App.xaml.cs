@@ -20,6 +20,8 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        DispatcherUnhandledException += (_, args) => { ReportCrash(args.Exception); args.Handled = true; Shutdown(1); };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) => ReportCrash(args.ExceptionObject as Exception);
 
         _singleInstance = new Mutex(true, "Z10AppletEngine.SingleInstance", out bool isNew);
         if (!isNew)
@@ -56,6 +58,26 @@ public partial class App : Application
         {
             _window.Show();
         }
+    }
+
+    /// <summary>Unerwarteten Fehler in crash.log schreiben und anzeigen, statt kommentarlos zu verschwinden.</summary>
+    private static void ReportCrash(Exception? ex)
+    {
+        string text = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {ex}";
+        string path = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Z10AppletEngine", "crash.log");
+        try
+        {
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path)!);
+            System.IO.File.AppendAllText(path, text + Environment.NewLine + Environment.NewLine);
+        }
+        catch (Exception) { }
+        try
+        {
+            MessageBox.Show($"Unerwarteter Fehler:\n\n{ex?.Message}\n\nDetails stehen in\n{path}", "Z10 Applet Engine",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        catch (Exception) { }
     }
 
     // Nach Ruhezustand/Energiesparen kann die Tastatur ihren Displayspeicher verloren haben: alles neu senden.
