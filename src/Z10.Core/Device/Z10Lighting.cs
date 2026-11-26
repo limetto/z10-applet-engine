@@ -115,8 +115,12 @@ public static class Z10Lighting
         "0000000000000000000000000000c0000000000000000000000000000000c100000000d600d600000000000000af0000000000000000000000" +
         "00000000be0000000000000000000000000000d7000000ad000000e7000000");
 
-    /// <summary>Pausen; in Tests auf 0 setzen.</summary>
-    public static TimeSpan CommandDelay { get; set; } = TimeSpan.FromMilliseconds(150);
+    /// <summary>
+    /// Pausen wie in Unleash (hid.exe): nach jedem SET 50 ms, nach jedem GET 500 ms. Ohne die lange Pause nach dem
+    /// Lesen hat sich die Firmware mindestens einmal aufgehängt. In Tests auf 0 setzen.
+    /// </summary>
+    public static TimeSpan CommandDelay { get; set; } = TimeSpan.FromMilliseconds(50);
+    public static TimeSpan ReadDelay { get; set; } = TimeSpan.FromMilliseconds(500);
     public static TimeSpan SaveDelay { get; set; } = TimeSpan.FromSeconds(3);
     public static int StatusPolls { get; set; } = 9;
 
@@ -167,7 +171,7 @@ public static class Z10Lighting
         }
 
         progress?.Report("Warte auf die Tastatur …");
-        for (int i = 0; i < StatusPolls; i++) { Query(dev, CmdStatus, 0); Sleep(CommandDelay * 3); }
+        for (int i = 0; i < StatusPolls; i++) Query(dev, CmdStatus, 0);   // ~0,55 s je Abfrage wie Unleash
 
         progress?.Report("Speichere …");
         Send(dev, CmdKeyTable, profile, KeyTable);
@@ -250,6 +254,7 @@ public static class Z10Lighting
     {
         Send(dev, cmd, arg);
         var r = dev.GetFeature();
+        Sleep(ReadDelay);
         if (r.Length < Z10Protocol.ReportLength || r[1] != cmd)
             throw new IOException($"Unerwartete Antwort auf Befehl 0x{cmd:X2}.");
         return r;

@@ -41,6 +41,9 @@ public sealed class AppletEngine : IDisposable
     private DateTime _forceFullUntil;
     private DateTime _deviceReadyAt;
 
+    /// <summary>Pause zwischen letzter Displayseite und dem ersten Befehl eines Gerätebefehls.</summary>
+    public TimeSpan JobStartDelay { get; set; } = TimeSpan.FromMilliseconds(200);
+
     /// <summary>Wartezeit nach dem Öffnen der Tastatur, bevor gesendet wird.</summary>
     public TimeSpan ConnectGrace { get; set; } = TimeSpan.FromMilliseconds(500);
     private bool _bootPending;
@@ -328,6 +331,7 @@ public sealed class AppletEngine : IDisposable
             oldText = StatusText;
             if (display is not null && !Suspended && job.Message is not null)
                 TryDevice(() => display.Show(MessageFrame(job.Message)));
+            if (display is not null) Thread.Sleep(JobStartDelay);   // Tastatur nach den Displayseiten kurz Luft lassen
             display = _display;
         }
 

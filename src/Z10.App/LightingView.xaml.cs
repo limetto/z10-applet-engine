@@ -39,7 +39,6 @@ public partial class LightingView : UserControl
     private readonly Dictionary<int, Border> _keys = new();
     private bool _loading;
     private bool _busy;
-    private bool _readOnce;
     private bool _dirty;
     private readonly DispatcherTimer _previewTimer;
     private string? _pendingPreview;
@@ -107,13 +106,11 @@ public partial class LightingView : UserControl
             : "Zuletzt bearbeitete Einstellungen – mit „Von Tastatur lesen“ den aktuellen Stand holen.";
     }
 
-    /// <summary>Beim ersten Öffnen den Stand der Tastatur lesen.</summary>
-    public void OnShown()
-    {
-        if (_readOnce || _busy || _state.Engine.State != EngineState.Connected) return;
-        _readOnce = true;
-        if (!_dirty) Read_Click(this, new RoutedEventArgs());
-    }
+    /// <summary>
+    /// Früher wurde beim ersten Öffnen automatisch gelesen. Seit sich die Tastatur dabei einmal aufgehängt hat,
+    /// wird nur noch auf Knopfdruck gelesen.
+    /// </summary>
+    public void OnShown() { }
 
     private void BuildKeyboard()
     {

@@ -559,6 +559,7 @@ var tests = new List<(string Name, Action Body)>
     ("Beleuchtung schreiben: Sequenz wie Unleash, unbekannte Bytes bleiben", () =>
     {
         Z10Lighting.CommandDelay = TimeSpan.Zero;
+        Z10Lighting.ReadDelay = TimeSpan.Zero;
         Z10Lighting.SaveDelay = TimeSpan.Zero;
         var dev = new FakeDevice();
         var kb = new FakeLightingKeyboard(dev);
