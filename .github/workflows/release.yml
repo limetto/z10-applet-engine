@@ -1,0 +1,53 @@
+name: Release
+
+# Manuell starten: Actions → Release → Run workflow, Versionsnummer eingeben (z. B. 1.0.0).
+# Baut die EXE mit dieser Version, legt das Tag v<Version> an und veröffentlicht ein GitHub-Release.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (z. B. 1.0.0)'
+        required: true
+      prerelease:
+        description: 'Als Vorabversion markieren'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Tests (Core)
+        run: dotnet run --project tests/Z10.Core.Tests -c Release
+
+      - name: Publish (Einzeldatei, win-x64)
+        run: >
+          dotnet publish src/Z10.App/Z10.App.csproj -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true -p:Version=${{ inputs.version }} -o publish
+
+      - name: Paket schnüren
+        shell: pwsh
+        run: |
+          Copy-Item README.md, README.de.md, LICENSE, THIRD-PARTY-NOTICES.md publish/
+          Compress-Archive -Path publish/* -DestinationPath Z10AppletEngine-${{ inputs.version }}-win-x64.zip
+
+      - name: Release anlegen
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ghArgs = @("v${{ inputs.version }}", "Z10AppletEngine-${{ inputs.version }}-win-x64.zip",
+                      "--target", "${{ github.sha }}", "--title", "Z10 Applet Engine ${{ inputs.version }}", "--generate-notes")
+          if ('${{ inputs.prerelease }}' -eq 'true') { $ghArgs += '--prerelease' }
+          gh release create @ghArgs

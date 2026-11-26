@@ -406,5 +406,11 @@
  "Eckenradius": "Corner radius",
  "HH:mm:ss · HH:mm · ddd dd.MM. · dddd, d. MMMM yyyy": "HH:mm:ss · h:mm tt · ddd MM/dd · dddd, MMMM d, yyyy",
  "{value:0} → 54   {value:0.0} → 54,3   {value/1000:0.0} → MHz in GHz": "{value:0} → 54   {value:0.0} → 54.3   {value/1000:0.0} → MHz to GHz",
- "Der Treiber PawnIO ist nicht installiert – ohne ihn fehlen viele CPU- und Mainboard-Werte. Download: github.com/namazso/PawnIO.Setup": "The PawnIO driver is not installed – without it many CPU and motherboard values are missing. Download: github.com/namazso/PawnIO.Setup"
+ "Der Treiber PawnIO ist nicht installiert – ohne ihn fehlen viele CPU- und Mainboard-Werte. Download: github.com/namazso/PawnIO.Setup": "The PawnIO driver is not installed – without it many CPU and motherboard values are missing. Download: github.com/namazso/PawnIO.Setup",
+ "Über": "About",
+ "Projektseite": "Project page",
+ "Lizenz (MIT)": "License (MIT)",
+ "Verwendete Bibliotheken": "Third-party libraries",
+ "Inoffizielles Projekt ohne Verbindung zu EVGA. Sensorwerte von LibreHardwareMonitor (MPL 2.0).": "Unofficial project, not affiliated with EVGA. Sensor values from LibreHardwareMonitor (MPL 2.0).",
+ "Version {0}": "Version {0}"
 }

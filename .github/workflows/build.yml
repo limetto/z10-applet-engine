@@ -26,16 +26,21 @@ jobs:
       - name: Verwendete Paketversionen
         run: dotnet list src/Z10.App/Z10.App.csproj package --include-transitive
 
+      - name: Version aus dem Tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: echo "VERSION_ARG=-p:Version=$('${{ github.ref_name }}'.TrimStart('v'))" >> $env:GITHUB_ENV
+
       - name: Publish (Einzeldatei, win-x64)
         run: >
           dotnet publish src/Z10.App/Z10.App.csproj -c Release -r win-x64 --self-contained true
           -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
-          -p:EnableCompressionInSingleFile=true -o publish
+          -p:EnableCompressionInSingleFile=true ${{ env.VERSION_ARG }} -o publish
 
       - name: Paket schnüren
         shell: pwsh
         run: |
-          Copy-Item README.md publish/
+          Copy-Item README.md, README.de.md, LICENSE, THIRD-PARTY-NOTICES.md publish/
           Compress-Archive -Path publish/* -DestinationPath Z10AppletEngine-win-x64.zip
 
       - uses: actions/upload-artifact@v4

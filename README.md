@@ -1,140 +1,142 @@
-<p align="center"><img src="docs/logo.png" width="128" alt="Logo der Z10 Applet Engine"></p>
+<p align="center"><img src="docs/logo.png" width="128" alt="Z10 Applet Engine logo"></p>
 
 # Z10 Applet Engine
 
-<p align="center"><img src="docs/boot.gif" width="640" alt="Startanimation auf dem Display der Z10"></p>
+*English · [Deutsch](README.de.md)*
 
-Eigene Applets für das 160 × 32-Pixel-LCD der **EVGA Z10** (die ursprüngliche Variante ohne RGB, USB `3842:2601`).
-Die Applets setzt du im Layout-Editor aus Bausteinen zusammen. Die Werte kommen aus **LibreHardwareMonitor**.
+<p align="center"><img src="docs/boot.gif" width="640" alt="Startup animation on the Z10 display"></p>
 
-> Inoffizielles Projekt, nicht von EVGA. Das Display-Protokoll wurde durch Analyse ermittelt, siehe [docs/PROTOCOL.md](docs/PROTOCOL.md).
+Custom applets for the 160 × 32 pixel LCD of the **EVGA Z10** keyboard (the original non-RGB model, USB `3842:2601`).
+You build applets from elements in a layout editor; values come from **LibreHardwareMonitor** and other sources.
+The app can also configure the keyboard's key lighting and display colour.
 
-## Funktionen
+> Unofficial project, not affiliated with EVGA. The protocol was worked out from USB captures, see [docs/PROTOCOL.md](docs/PROTOCOL.md) (German).
 
-- **Applet-Rotation** mit eigener Anzeigedauer und Aktualisierung pro Applet; Rotation anhalten, vor und zurück blättern
-- **Abfrageintervall** der Sensoren einstellbar (0,25–2 s); häufig abgefragt wird nur die Hardware, die gerade gebraucht wird
-- **Grundformen** im Editor: Linie (mit Stärke), Rechteck (leer/gefüllt, runde Ecken) und Oval/Kreis
-- **Bildschirmschoner** nach einstellbarer Zeit ohne Tastendruck: Logo, Sternenflug, Matrix, Lagerfeuer oder Aquarium
-- **Verschiebeanimation** beim Applet-Wechsel (zuschaltbar, Dauer einstellbar)
-- **Tastenbeleuchtung**: Effekt (Aus, Statisch, Atmen, Ausgewählte Tasten, Trigger, Explosion), Helligkeit in 10 Stufen und Auswahl einzelner Tasten auf einer Tastaturgrafik mit Gruppen (WASD, F-Tasten, E-Tasten, Ziffernblock …); dazu die **Farbe der Displaybeleuchtung** mit Live-Vorschau; wird wie bei Unleash ins aktive Profil der Tastatur geschrieben
-- **Tasten E6/E7** an der Tastatur: standardmäßig voriges und nächstes Applet, belegbar mit Rotation anhalten oder Display freigeben
-- **Layout-Editor** mit Pixelraster, Ziehen mit der Maus, Pfeiltasten und Ebenenliste
-- **Bausteine:** Text, Sensorwert (mit Format wie `{value/1000:0.0} GHz`), Balken, Verlauf, Uhr/Datum, Symbol
-- **Symbole:** über 60 eingebaute Pixel-Symbole (8 × 8 und 16 × 16) mit Vorschau in der Auswahl, dazu **eigene Grafiken und animierte GIFs** per Import (Schwellwert, Rasterung, Invertieren, Größe)
-- **Schriften:** eingebaute 5×7-Pixelschrift in 4 Größen oder jede Windows-Schrift (ohne Kantenglättung gerendert)
-- **Überlagerung** pro Baustein: Normal, Invertieren (XOR, z. B. Schrift auf einem Balken bleibt lesbar) oder Ausstanzen
-- **Glättung** pro Baustein (Mittelwert oder Median über N Sekunden) für stark schwankende Sensoren
-- **Weitere Datenquellen:** RTSS (Framerate, Frametime), MSI Afterburner (alle Überwachungswerte), Lautstärke und Stummschaltung der Audiogeräte und **eigene Sensoren** per Formel aus bestehenden Sensoren
-- **Warnwerte:** Ein Baustein wird invertiert oder blinkt, wenn ein Grenzwert überschritten ist. Das Applet kann dann sofort nach vorne springen.
-- **Auto-Sensoren** wie „CPU-Temperatur“, die auf Intel, AMD und NVIDIA ohne Anpassung funktionieren
-- Helligkeit und Kontrast (5 Stufen), Symbol im Infobereich, Autostart ohne UAC-Abfrage
-- Startanimation mit Logo auf der Tastatur und im Startfenster (abschaltbar)
-- Läuft **EVGA Unleash**, gibt die Engine das Display automatisch frei
+## Features
+
+- **Applet rotation** with display time and refresh rate per applet; pause, step forward and back, optional **slide animation**
+- **Layout editor** with pixel grid, mouse dragging, arrow keys and a layer list
+- **Elements:** text, sensor value (with formats like `{value/1000:0.0} GHz`), bar, graph, clock/date, icon, line, rectangle, oval
+- **Icons:** over 60 built-in pixel icons (8 × 8 and 16 × 16), plus **your own images and animated GIFs** (threshold, dithering, invert, size)
+- **Fonts:** built-in 5×7 pixel font in 4 sizes or any Windows font (rendered without anti-aliasing)
+- **Blending** per element: normal, invert (XOR – text on a bar stays readable) or cut out
+- **Smoothing** per element (average or median over N seconds) for noisy sensors
+- **Warnings:** an element inverts or blinks when a threshold is exceeded, and the applet can jump to the front
+- **Data sources:** LibreHardwareMonitor, RTSS (frame rate, frame time), MSI Afterburner (all monitoring values), audio device volume/mute, and **custom sensors** calculated by formula
+- **Auto sensors** such as “CPU temperature” that work on Intel, AMD and NVIDIA without changes
+- **Polling interval** 0.25–2 s; only hardware that an applet needs is polled that often
+- **Screensaver** after a configurable idle time: logo, starfield, Matrix, campfire or aquarium
+- **Key lighting:** effect (off, static, breathing, selected keys, trigger, explosion), brightness in 10 steps and per-key selection on a keyboard graphic with groups (WASD, F-keys, E-keys, numpad …), plus the **display backlight colour**; written to the keyboard's active profile like EVGA Unleash does
+- **Keyboard layouts** for the lighting graphic: US (ANSI), UK, German, French (AZERTY), Nordic
+- **E6/E7 keys** on the keyboard: previous/next applet by default, or pause rotation / release display
+- **Languages:** English and German; more can be added with language files, no rebuild needed (template under *Options*)
+- Display brightness and contrast, tray icon, autostart without UAC prompt, startup animation
+- While **EVGA Unleash** is running, the engine releases the display automatically
 
 ## Installation
 
-1. Unter [Releases](../../releases) bzw. in den Actions-Artefakten `Z10AppletEngine-win-x64.zip` herunterladen und entpacken.
-2. **EVGA Unleash beenden** (auch `hid.exe` im Task-Manager), sonst teilen sich zwei Programme das Display.
-3. `Z10AppletEngine.exe` starten. Das Programm fragt nach Adminrechten, weil LibreHardwareMonitor sie für CPU-Temperaturen und Lüfter braucht.
-4. Optional unter *Gerät & Sensoren* „Mit Windows starten“ aktivieren. Dabei wird eine Aufgabe in der Aufgabenplanung angelegt, sodass beim Anmelden keine UAC-Abfrage kommt.
+1. Download `Z10AppletEngine-win-x64.zip` from [Releases](../../releases) and extract it. No .NET installation is needed.
+2. **Quit EVGA Unleash** (including `hid.exe` in Task Manager); otherwise two programs share the display.
+3. Install the **[PawnIO](https://github.com/namazso/PawnIO.Setup/releases)** driver (see below).
+4. Start `Z10AppletEngine.exe`. It asks for administrator rights because LibreHardwareMonitor needs them for CPU temperatures and fans.
+5. Optionally enable “Start with Windows” under *Options*. This creates a Task Scheduler task, so there is no UAC prompt at logon.
 
-Das Schließen-Kreuz minimiert die App in den Infobereich. Beenden geht über das Kontextmenü des Symbols.
+The close button minimises the app to the tray; exit it from the tray icon's menu.
 
-### Hinweis zu Virenscannern
+### PawnIO driver
 
-LibreHardwareMonitor nutzt einen Kernel-Treiber, um Sensoren auszulesen. Je nach Version der Bibliothek (älter: WinRing0, neuer: PawnIO) kann Windows Defender warnen oder ein zusätzlicher Treiber nötig sein. Fehlen Sensoren, zeigt die Seite *Gerät & Sensoren* den Fehler an.
+Recent versions of LibreHardwareMonitor (the app uses 0.9.6) read CPU, motherboard and SMBus sensors through the **PawnIO** driver, which replaces the old WinRing0 driver that Windows Defender now blocks. Without PawnIO many values are missing, and the *Device & sensors* page shows a hint. GPU values (via the graphics driver), RTSS, Afterburner and audio usually work without it.
 
-## Daten
+### SmartScreen
 
-Applets und Einstellungen liegen in `%APPDATA%\Z10AppletEngine\`:
+The EXE is not code-signed, so Windows may warn on first start (“Windows protected your PC”). Choose *More info → Run anyway*.
 
-- `applets\*.json`: ein Applet pro Datei, von Hand bearbeitbar und teilbar
-- `settings.json`: Helligkeit, Kontrast, Seiten-Pause usw.
+## Data
 
-Beim ersten Start werden Vorlagen angelegt: CPU, GPU, Uhr & Datum, Arbeitsspeicher und CPU-Verlauf (dieses ist zunächst deaktiviert).
+Applets and settings are stored in `%APPDATA%\Z10AppletEngine\`:
 
-### Sensoren
+- `applets\*.json` – one applet per file; can be edited by hand and shared
+- `settings.json` – brightness, contrast, page delay etc.
+- `images\` – imported graphics
+- `lang\*.json` – additional languages
 
-Ein Sensor ist entweder ein LibreHardwareMonitor-Identifier wie `/amdcpu/0/temperature/2` oder eine Auto-Abfrage:
+On first start, templates are created: CPU, GPU, clock & date, memory, and CPU history (disabled at first).
+
+### Sensors
+
+A sensor is either a LibreHardwareMonitor identifier such as `/amdcpu/0/temperature/2` or an auto query:
 
 ```
-auto:<Art>/<Sensortyp>/<Name 1>||<Name 2>||*
+auto:<kind>/<sensor type>/<name 1>||<name 2>||*
 auto:cpu/Temperature/CPU Package||Core (Tctl/Tdie)||*
 ```
 
-Art: `cpu`, `gpu`, `memory`, `motherboard`, `network`, `storage`. Die Namen werden der Reihe nach probiert, `*` nimmt den ersten Sensor des Typs.
+Kind: `cpu`, `gpu`, `memory`, `motherboard`, `network`, `storage`. Names are tried in order; `*` takes the first sensor of that type.
 
-### Eigene Sensoren
+### Custom sensors
 
-Unter *Gerät & Sensoren → Eigene Sensoren* legst du Sensoren an, die aus anderen berechnet werden. Im Layout-Editor heißen sie dann `custom:<Kurzname>`.
+Under *Device & sensors → Custom sensors* you create sensors calculated from others. In the layout editor they are called `custom:<short name>`.
 
 ```
-max([auto:cpu/Temperature/*], [auto:gpu/Temperature/*])          heißester Chip
-avg([/lpc/nct6798d/fan/0], [/lpc/nct6798d/fan/1])                 mittlere Lüfterdrehzahl
+max([auto:cpu/Temperature/*], [auto:gpu/Temperature/*])          hottest chip
+avg([/lpc/nct6798d/fan/0], [/lpc/nct6798d/fan/1])                 average fan speed
 [auto:memory/Data/Memory Used] / ([auto:memory/Data/Memory Used] + [auto:memory/Data/Memory Available]) * 100
 ```
 
-Erlaubt sind `+ - * / ^`, Klammern, `min`, `max`, `avg`, `sum` (diese überspringen fehlende Werte), `abs`, `round(x, Stellen)` und `clamp(x, min, max)`. Als Dezimaltrenner gilt der Punkt.
+Allowed: `+ - * / ^`, parentheses, `min`, `max`, `avg`, `sum` (these skip missing values), `abs`, `round(x, digits)` and `clamp(x, min, max)`. Use a decimal point.
 
 ### RTSS (RivaTuner Statistics Server)
 
-Läuft RTSS, stehen `/rtss/fps` (Framerate) und `/rtss/frametime` (ms) des aktiven Spiels zur Verfügung. Abschalten kannst du das unter *Gerät & Sensoren*.
-RTSS ist ein eigenes Programm (Symbol im Infobereich), das mit MSI Afterburner installiert wird. Afterburner allein liefert keine FPS. RTSS muss laufen, zum Beispiel mit „Start with Windows“ in den RTSS-Einstellungen.
+While RTSS is running, `/rtss/fps` (frame rate) and `/rtss/frametime` (ms) of the active game are available. RTSS is a separate program (tray icon) installed with MSI Afterburner; Afterburner alone does not provide FPS.
 
 ### MSI Afterburner
 
-Läuft Afterburner, erscheinen alle Werte aus seiner Hardwareüberwachung als `/afterburner/…`, zum Beispiel `/afterburner/gpu0/gpu-temperature`. Die Framerate darin ist nur gefüllt, wenn auch RTSS läuft.
+While Afterburner is running, all values from its hardware monitoring appear as `/afterburner/…`, e.g. `/afterburner/gpu0/gpu-temperature`.
 
-### Lautstärke
+### Volume
 
-Über die Windows Core Audio API gibt es folgende Sensoren:
+Via the Windows Core Audio API:
 
-| Sensor | Wert |
+| Sensor | Value |
 |---|---|
-| `/audio/default/volume` | Lautstärke des Standard-Wiedergabegeräts in % |
-| `/audio/default/mute` | Standard-Wiedergabegerät stumm: 1, sonst 0 |
-| `/audio/default-mic/volume`, `/audio/default-mic/mute` | Standard-Mikrofon |
-| `/audio/out/<gerät>/volume`, `/audio/in/<gerät>/volume` | jedes einzelne aktive Gerät |
+| `/audio/default/volume` | volume of the default playback device in % |
+| `/audio/default/mute` | default playback device muted: 1, otherwise 0 |
+| `/audio/default-mic/volume`, `/audio/default-mic/mute` | default microphone |
+| `/audio/out/<device>/volume`, `/audio/in/<device>/volume` | every active device |
 
-Text je nach Stummschaltung zeigt das Format `{value:STUMM;;laut}`: Bei 1 erscheint „STUMM“, bei 0 „laut“.
+To show text depending on mute state, use the format `{value:MUTED;;on}`: 1 shows “MUTED”, 0 shows “on”.
 
-### Glättung
+### Formats
 
-Sensorwert, Balken und Verlauf können über die letzten 2–600 Sekunden glätten:
-- **Mittelwert** beruhigt allgemeines Zittern.
-- **Median** filtert einzelne Ausreißer heraus.
-
-Warnwerte richten sich nach dem geglätteten Wert.
-
-### Eigene Grafiken
-
-Im Layout-Editor beim Symbol-Baustein auf **„Grafik importieren …“** klicken. Möglich sind PNG, JPG, BMP und GIF, auch animiert. Im Dialog stellst du ein:
-- die Zielgröße (bis 160 × 32),
-- den Schwellwert,
-- Rasterung (für Fotos und Verläufe),
-- Invertieren (für dunkle Motive auf hellem Grund).
-
-Die Vorschau zeigt das Ergebnis in Displaygröße, Animationen laufen mit. Gespeichert wird in `%APPDATA%\Z10AppletEngine\images\`, im Applet heißt die Grafik dann `img:<Name>`. Animationen laufen auf der Tastatur mit bis zu etwa 10 Bildern pro Sekunde.
-
-### Formate
-
-| Vorlage | Wert | Ergebnis |
+| Template | Value | Result |
 |---|---|---|
-| `{value:0}°C` | 54,4 | `54°C` |
-| `{value/1000:0.0} GHz` | 4210 | `4,2 GHz` |
-| `Last {value:0}%` | 23,2 | `Last 23%` |
+| `{value:0}°C` | 54.4 | `54°C` |
+| `{value/1000:0.0} GHz` | 4210 | `4.2 GHz` |
+| `Load {value:0}%` | 23.2 | `Load 23%` |
 
-Fehlt der Sensor, wird `--` angezeigt. Uhr/Datum nutzt .NET-Datumsformate (`HH:mm:ss`, `dddd, d. MMMM yyyy`).
+If the sensor is missing, `--` is shown. Clock/date uses .NET date formats (`HH:mm:ss`, `dddd, MMMM d, yyyy`).
 
-## Entwicklung
+### Translating
+
+*Options → Template for a new language …* writes `_template.json` with every text of the app (German source → English) to the language folder. Translate the values, save the file as e.g. `fr.json`, set `"@name"` to the language's name and restart – the language appears in the selection. Pull requests with new languages are welcome.
+
+## Development
 
 ```
-src/Z10.Core          Protokoll, HID-Zugriff, Rendering, Datenmodell, Engine (net8.0, keine Abhängigkeiten)
-src/Z10.App           WPF-Oberfläche, LibreHardwareMonitor-Anbindung (net8.0-windows)
-tests/Z10.Core.Tests  Tests ohne externe Pakete: dotnet run --project tests/Z10.Core.Tests
+src/Z10.Core          protocol, HID access, rendering, data model, engine, localisation (net8.0, no dependencies)
+src/Z10.App           WPF UI, LibreHardwareMonitor integration (net8.0-windows)
+tests/Z10.Core.Tests  tests without external packages: dotnet run --project tests/Z10.Core.Tests
+tools/                Python scripts used while reverse engineering (LCD and lighting tests)
 ```
 
-`dotnet run --project tests/Z10.Core.Tests -- --dump <Ordner>` rendert alle Vorlagen als PBM-Bilder, ohne dass die Tastatur angeschlossen sein muss.
+`dotnet run --project tests/Z10.Core.Tests -- --dump <folder>` renders all templates as PBM images without a keyboard attached.
 
-GitHub Actions baut bei jedem Push eine selbstständige EXE (win-x64, keine .NET-Installation nötig). Ein Tag `v*` erzeugt ein Release.
+GitHub Actions builds a self-contained EXE (win-x64) on every push. A release is created via *Actions → Release → Run workflow* (enter a version) or by pushing a tag `v*`.
 
+UI texts are written in German in the source; `src/Z10.Core/Localization/en.json` maps them to English. A test fails the build if a visible text has no English translation.
+
+## License
+
+MIT, see [LICENSE](LICENSE). Third-party libraries and their licenses: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+This project is not affiliated with or endorsed by EVGA. “EVGA” and “Z10” are trademarks of their respective owners. The protocol was derived from USB captures and analysis of EVGA Unleash for interoperability with your own keyboard; the repository contains no code or files from EVGA. Use at your own risk – writing lighting profiles in particular changes the keyboard's memory.

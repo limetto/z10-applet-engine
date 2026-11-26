@@ -67,6 +67,9 @@ public partial class OptionsView : UserControl
         E7Box.SelectedIndex = Math.Max(0, Array.FindIndex(KeyActions, k => k.Action == s.E7Action));
         _state.Engine.KeyPressed += (_, _) => Dispatcher.BeginInvoke(Refresh);
 
+        var v = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version;
+        VersionText.Text = "Z10 Applet Engine · " + L("Version {0}", v is null ? "?" : $"{v.Major}.{v.Minor}.{v.Build}");
+
         _languages = Loc.Available().ToArray();
         LanguageBox.Items.Add(L("Automatisch (Windows-Sprache)"));
         foreach (var lang in _languages) LanguageBox.Items.Add(lang.Name);
@@ -104,6 +107,13 @@ public partial class OptionsView : UserControl
         KeysStatus.Text = !_state.Settings.KeysEnabled ? L("ausgeschaltet")
             : !_state.Keys.IsConnected ? L("Tastenkanal nicht verbunden")
             : _state.Engine.LastKey is string last ? L("bereit · zuletzt gedrückt: {0}", last) : L("bereit · drück E6 oder E7 zum Testen");
+    }
+
+    private void Link_Navigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+    {
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true }); }
+        catch (Exception) { }
+        e.Handled = true;
     }
 
     private LanguageInfo[] _languages = Array.Empty<LanguageInfo>();

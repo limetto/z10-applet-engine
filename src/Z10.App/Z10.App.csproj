@@ -13,9 +13,12 @@
     <AssemblyName>Z10AppletEngine</AssemblyName>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.1.0</Version>
+    <Version>1.0.0</Version>
     <Product>Z10 Applet Engine</Product>
-    <Description>Eigene Applets für das LCD der EVGA Z10</Description>
+    <Description>Custom applets for the LCD of the EVGA Z10 keyboard</Description>
+    <Authors>limetto</Authors>
+    <Copyright>Copyright (c) 2026 limetto</Copyright>
+    <RepositoryUrl>https://github.com/limetto/z10-applet-engine</RepositoryUrl>
     <!-- WPF steuert DPI über das Manifest; die WinForms-Empfehlung (nur für den Infobereich genutzt) passt hier nicht -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
   </PropertyGroup>
@@ -26,7 +29,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.*" />
+    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
   </ItemGroup>
 
   <ItemGroup>

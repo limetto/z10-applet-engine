@@ -38,6 +38,21 @@
                          Text="Framerate gibt es nur, wenn der RivaTuner Statistics Server läuft. Er ist ein eigenes Programm (Symbol im Infobereich), das mit Afterburner installiert wird. Afterburner allein liefert keine FPS."/>
           </StackPanel>
         </Border>
+        <Border Style="{StaticResource Card}" Margin="0,20,0,0">
+          <StackPanel>
+            <TextBlock Text="Über" Style="{StaticResource H2}"/>
+            <TextBlock x:Name="VersionText" Foreground="{StaticResource MutedBrush}"/>
+            <TextBlock Margin="0,8,0,0" TextWrapping="Wrap">
+              <Hyperlink NavigateUri="https://github.com/limetto/z10-applet-engine" RequestNavigate="Link_Navigate"><Run Text="Projektseite"/></Hyperlink>
+              <Run Text=" · "/>
+              <Hyperlink NavigateUri="https://github.com/limetto/z10-applet-engine/blob/main/LICENSE" RequestNavigate="Link_Navigate"><Run Text="Lizenz (MIT)"/></Hyperlink>
+              <Run Text=" · "/>
+              <Hyperlink NavigateUri="https://github.com/limetto/z10-applet-engine/blob/main/THIRD-PARTY-NOTICES.md" RequestNavigate="Link_Navigate"><Run Text="Verwendete Bibliotheken"/></Hyperlink>
+            </TextBlock>
+            <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0" TextWrapping="Wrap"
+                       Text="Inoffizielles Projekt ohne Verbindung zu EVGA. Sensorwerte von LibreHardwareMonitor (MPL 2.0)."/>
+          </StackPanel>
+        </Border>
       </StackPanel>
 
       <StackPanel Grid.Column="2">
