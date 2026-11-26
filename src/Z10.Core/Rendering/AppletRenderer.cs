@@ -86,8 +86,34 @@ public sealed class AppletRenderer
             case GraphWidget g:
                 DrawGraph(fb, g);
                 break;
+            case ShapeWidget sh:
+                DrawShape(fb, sh);
+                break;
             case IconWidget i:
                 fb.Blit(Icons.Get(i.Icon, Images, new DateTimeOffset(now).ToUnixTimeMilliseconds()), i.X, i.Y, i.X, i.Y, i.W, i.H);
+                break;
+        }
+    }
+
+    private static void DrawShape(Framebuffer fb, ShapeWidget s)
+    {
+        int t = Math.Clamp(s.Thickness, 1, 16);
+        switch (s.Shape)
+        {
+            case ShapeKind.Line:
+                int off = (t - 1) / 2;
+                int x0 = s.X + off, x1 = s.X + s.W - 1 - (t - 1 - off);
+                int yTop = s.Y + off, yBottom = s.Y + s.H - 1 - (t - 1 - off);
+                if (x1 < x0) x1 = x0;
+                if (yBottom < yTop) yBottom = yTop;
+                if (s.Direction == LineDirection.Rising) fb.DrawThickLine(x0, yBottom, x1, yTop, t);
+                else fb.DrawThickLine(x0, yTop, x1, yBottom, t);
+                break;
+            case ShapeKind.Ellipse:
+                fb.DrawEllipse(s.X, s.Y, s.W, s.H, s.Filled, t);
+                break;
+            default:
+                fb.DrawRoundRect(s.X, s.Y, s.W, s.H, s.Radius, s.Filled, t);
                 break;
         }
     }

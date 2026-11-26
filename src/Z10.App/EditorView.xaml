@@ -34,7 +34,12 @@
             <Button Content="Balken" Tag="bar" Click="AddWidget_Click" Margin="0,0,0,6"/>
             <Button Content="Verlauf" Tag="graph" Click="AddWidget_Click" Margin="0,0,0,6"/>
             <Button Content="Uhr / Datum" Tag="clock" Click="AddWidget_Click" Margin="0,0,0,6"/>
-            <Button Content="Symbol" Tag="icon" Click="AddWidget_Click"/>
+            <Button Content="Symbol" Tag="icon" Click="AddWidget_Click" Margin="0,0,0,6"/>
+            <UniformGrid Columns="3">
+              <Button Content="Linie" Tag="line" Click="AddWidget_Click" Margin="0,0,3,0" ToolTip="Linie (auch waagerecht/senkrecht)"/>
+              <Button Content="Rechteck" Tag="rect" Click="AddWidget_Click" Margin="3,0,3,0" ToolTip="Rechteck, leer oder gefüllt, auf Wunsch mit runden Ecken"/>
+              <Button Content="Oval" Tag="ellipse" Click="AddWidget_Click" Margin="3,0,0,0" ToolTip="Oval/Kreis, leer oder gefüllt"/>
+            </UniformGrid>
           </StackPanel>
         </Border>
         <Border Style="{StaticResource Card}" Margin="0,16,0,0">

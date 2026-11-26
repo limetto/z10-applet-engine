@@ -69,6 +69,7 @@ public abstract class SensorBoundWidget : Widget, ISensorWidget
 [JsonDerivedType(typeof(GraphWidget), "graph")]
 [JsonDerivedType(typeof(ClockWidget), "clock")]
 [JsonDerivedType(typeof(IconWidget), "icon")]
+[JsonDerivedType(typeof(ShapeWidget), "shape")]
 public abstract class Widget
 {
     public string Name { get; set; } = "";
@@ -153,4 +154,37 @@ public sealed class IconWidget : Widget
     /// <summary>Name eines eingebauten Symbols (cpu, gpu, ram, fan, temp, …) oder 8 Hex-Bytes.</summary>
     public string Icon { get; set; } = "cpu";
     public override string KindName => "Symbol";
+}
+
+public enum ShapeKind { Line, Rectangle, Ellipse }
+
+/// <summary>Richtung einer Linie in ihrem Rahmen.</summary>
+public enum LineDirection
+{
+    /// <summary>von links oben nach rechts unten (bei Höhe 1 waagerecht, bei Breite 1 senkrecht)</summary>
+    Falling,
+    /// <summary>von links unten nach rechts oben</summary>
+    Rising,
+}
+
+/// <summary>Grundform: Linie, Rechteck oder Oval im Rahmen X/Y/W/H.</summary>
+public sealed class ShapeWidget : Widget
+{
+    public ShapeKind Shape { get; set; } = ShapeKind.Rectangle;
+    public bool Filled { get; set; }
+
+    /// <summary>Linien- bzw. Randstärke in Pixeln.</summary>
+    public int Thickness { get; set; } = 1;
+
+    /// <summary>Eckenradius für Rechtecke.</summary>
+    public int Radius { get; set; }
+
+    public LineDirection Direction { get; set; }
+
+    public override string KindName => Shape switch
+    {
+        ShapeKind.Line => "Linie",
+        ShapeKind.Ellipse => "Oval",
+        _ => "Rechteck",
+    };
 }

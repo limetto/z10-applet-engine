@@ -12,6 +12,7 @@ Die Applets setzt du im Layout-Editor aus Bausteinen zusammen. Die Werte kommen 
 ## Funktionen
 
 - **Applet-Rotation** mit eigener Anzeigedauer und Aktualisierung pro Applet; Rotation anhalten, vor und zurück blättern
+- **Grundformen** im Editor: Linie (mit Stärke), Rechteck (leer/gefüllt, runde Ecken) und Oval/Kreis
 - **Bildschirmschoner** nach einstellbarer Zeit ohne Tastendruck: Logo, Sternenflug oder Matrix
 - **Verschiebeanimation** beim Applet-Wechsel (zuschaltbar, Dauer einstellbar)
 - **Tastenbeleuchtung**: Effekt (Aus, Statisch, Atmen, Ausgewählte Tasten, Trigger, Explosion), Helligkeit in 10 Stufen und Auswahl einzelner Tasten auf einer Tastaturgrafik mit Gruppen (WASD, F-Tasten, E-Tasten, Ziffernblock …); dazu die **Farbe der Displaybeleuchtung** mit Live-Vorschau; wird wie bei Unleash ins aktive Profil der Tastatur geschrieben

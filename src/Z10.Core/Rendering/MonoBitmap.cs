@@ -113,4 +113,71 @@ public class MonoBitmap
     }
 
     public int CountSet() => Pixels.Count(p => p);
+
+    /// <summary>Linie mit Stärke (quadratischer Pinsel).</summary>
+    public void DrawThickLine(int x0, int y0, int x1, int y1, int thickness, bool on = true)
+    {
+        if (thickness <= 1) { DrawLine(x0, y0, x1, y1, on); return; }
+        int off = (thickness - 1) / 2;
+        int dx = Math.Abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+        int dy = -Math.Abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+        int err = dx + dy;
+        while (true)
+        {
+            FillRect(x0 - off, y0 - off, thickness, thickness, on);
+            if (x0 == x1 && y0 == y1) break;
+            int e2 = 2 * err;
+            if (e2 >= dy) { err += dy; x0 += sx; }
+            if (e2 <= dx) { err += dx; y0 += sy; }
+        }
+    }
+
+    /// <summary>
+    /// Rechteck mit abgerundeten Ecken (Radius 0 = eckig), gefüllt oder als Rand der Stärke <paramref name="thickness"/>.
+    /// </summary>
+    public void DrawRoundRect(int x, int y, int w, int h, int radius, bool filled, int thickness = 1, bool on = true)
+    {
+        if (w <= 0 || h <= 0) return;
+        radius = Math.Clamp(radius, 0, Math.Min(w, h) / 2);
+        thickness = Math.Max(1, thickness);
+        for (int py = 0; py < h; py++)
+            for (int px = 0; px < w; px++)
+            {
+                if (!InRoundRect(px, py, w, h, radius)) continue;
+                bool inner = !filled && w > 2 * thickness && h > 2 * thickness
+                    && InRoundRect(px - thickness, py - thickness, w - 2 * thickness, h - 2 * thickness, Math.Max(0, radius - thickness));
+                if (filled || !inner) this[x + px, y + py] = on;
+            }
+    }
+
+    private static bool InRoundRect(int px, int py, int w, int h, int r)
+    {
+        if (px < 0 || py < 0 || px >= w || py >= h) return false;
+        if (r <= 0) return true;
+        // Abstand der Pixelmitte zum Mittelpunkt des Eckkreises
+        double cx = px < r ? r : px >= w - r ? w - r : px + 0.5;
+        double cy = py < r ? r : py >= h - r ? h - r : py + 0.5;
+        double dx = px + 0.5 - cx, dy = py + 0.5 - cy;
+        return dx * dx + dy * dy <= r * r + 0.25;
+    }
+
+    /// <summary>Oval, das den Rahmen ausfüllt; gefüllt oder als Rand der Stärke <paramref name="thickness"/>.</summary>
+    public void DrawEllipse(int x, int y, int w, int h, bool filled, int thickness = 1, bool on = true)
+    {
+        if (w <= 0 || h <= 0) return;
+        thickness = Math.Max(1, thickness);
+        double a = w / 2.0, b = h / 2.0;
+        double ai = a - thickness, bi = b - thickness;
+        for (int py = 0; py < h; py++)
+            for (int px = 0; px < w; px++)
+            {
+                double dx = px + 0.5 - a, dy = py + 0.5 - b;
+                if (!InEllipse(dx, dy, a, b)) continue;
+                bool inner = !filled && ai > 0 && bi > 0 && InEllipse(dx, dy, ai, bi);
+                if (!inner) this[x + px, y + py] = on;
+            }
+    }
+
+    private static bool InEllipse(double dx, double dy, double a, double b) =>
+        dx * dx / (a * a) + dy * dy / (b * b) <= 1.0 + 0.5 / Math.Max(1, Math.Min(a, b) * Math.Min(a, b));
 }

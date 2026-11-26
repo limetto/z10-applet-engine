@@ -313,6 +313,9 @@ public partial class EditorView : UserControl
             "bar" => new BarWidget { Name = "Balken", W = 80, H = 7, Sensor = DefaultApplets.CpuLoad },
             "graph" => new GraphWidget { Name = "Verlauf", W = 80, H = 16, Sensor = DefaultApplets.CpuLoad, Min = 0, Max = 100 },
             "clock" => new ClockWidget { Name = "Uhr", W = 60, H = 7, Format = "HH:mm:ss" },
+            "line" => new ShapeWidget { Name = "Linie", Shape = ShapeKind.Line, W = 40, H = 1 },
+            "rect" => new ShapeWidget { Name = "Rechteck", Shape = ShapeKind.Rectangle, W = 30, H = 12 },
+            "ellipse" => new ShapeWidget { Name = "Oval", Shape = ShapeKind.Ellipse, W = 16, H = 16 },
             _ => new IconWidget { Name = "Symbol", W = 8, H = 8, Icon = "cpu" },
         };
         _layers.Add(w);
@@ -376,6 +379,9 @@ public partial class EditorView : UserControl
             case IconWidget i:
                 AddIconPicker(i);
                 break;
+            case ShapeWidget sh:
+                AddShapeProps(sh);
+                break;
         }
 
         AddLabel("Position und Größe (Pixel)");
@@ -405,6 +411,44 @@ public partial class EditorView : UserControl
             AddRow(("ab (≥)", () => w.Warn?.Above?.ToString(CultureInfo.CurrentCulture) ?? "", v => { EnsureWarn(w).Above = TryDouble(v, out var d) ? d : null; CleanWarn(w); }),
                    ("bis (≤)", () => w.Warn?.Below?.ToString(CultureInfo.CurrentCulture) ?? "", v => { EnsureWarn(w).Below = TryDouble(v, out var d) ? d : null; CleanWarn(w); }));
             AddCheck("Blinken statt dauerhaft invertieren", w.Warn?.Blink ?? false, v => { EnsureWarn(w).Blink = v; CleanWarn(w); });
+        }
+    }
+
+    private void AddShapeProps(ShapeWidget sh)
+    {
+        AddLabel("Form");
+        var shape = new ComboBox { ItemsSource = new[] { "Linie", "Rechteck", "Oval" }, SelectedIndex = (int)sh.Shape };
+        shape.SelectionChanged += (_, _) =>
+        {
+            sh.Shape = (ShapeKind)Math.Max(0, shape.SelectedIndex);
+            Changed();
+            Layers.Items.Refresh();
+            Dispatcher.BeginInvoke(() => BuildProps(sh));   // passende Felder für die neue Form
+        };
+        PropsPanel.Children.Add(shape);
+
+        if (sh.Shape == ShapeKind.Line)
+        {
+            AddLabel("Richtung");
+            var dir = new ComboBox
+            {
+                ItemsSource = new[] { "↘ links oben nach rechts unten", "↗ links unten nach rechts oben" },
+                SelectedIndex = (int)sh.Direction,
+            };
+            dir.SelectionChanged += (_, _) => { sh.Direction = (LineDirection)Math.Max(0, dir.SelectedIndex); Changed(); };
+            PropsPanel.Children.Add(dir);
+            AddHint("Die Linie verläuft diagonal durch den Rahmen. Höhe 1 = waagerecht, Breite 1 = senkrecht.");
+            AddRow(("Stärke", () => sh.Thickness.ToString(), v => { if (int.TryParse(v, out var i) && i >= 1) sh.Thickness = Math.Min(i, 16); }));
+        }
+        else
+        {
+            AddCheck("Gefüllt", sh.Filled, v => sh.Filled = v);
+            if (sh.Shape == ShapeKind.Rectangle)
+                AddRow(("Randstärke", () => sh.Thickness.ToString(), v => { if (int.TryParse(v, out var i) && i >= 1) sh.Thickness = Math.Min(i, 16); }),
+                       ("Eckenradius", () => sh.Radius.ToString(), v => { if (int.TryParse(v, out var i) && i >= 0) sh.Radius = Math.Min(i, 16); }));
+            else
+                AddRow(("Randstärke", () => sh.Thickness.ToString(), v => { if (int.TryParse(v, out var i) && i >= 1) sh.Thickness = Math.Min(i, 16); }));
+            if (sh.Shape == ShapeKind.Ellipse) AddHint("Gleiche Breite und Höhe ergibt einen Kreis.");
         }
     }
 

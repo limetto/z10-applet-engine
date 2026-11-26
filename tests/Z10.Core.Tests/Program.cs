@@ -559,6 +559,34 @@ var tests = new List<(string Name, Action Body)>
         True(e.ScreensaverActive, "Vorschau startet nicht");
     }),
 
+    ("Grundformen: Linie, Rechteck, Oval zeichnen und speichern", () =>
+    {
+        var applet = new Applet { Widgets = {
+            new ShapeWidget { Shape = ShapeKind.Line, X = 0, Y = 0, W = 10, H = 1 },
+            new ShapeWidget { Shape = ShapeKind.Line, X = 0, Y = 10, W = 10, H = 10, Direction = LineDirection.Rising },
+            new ShapeWidget { Shape = ShapeKind.Rectangle, X = 20, Y = 0, W = 10, H = 8 },
+            new ShapeWidget { Shape = ShapeKind.Rectangle, X = 40, Y = 0, W = 10, H = 8, Filled = true, Radius = 3 },
+            new ShapeWidget { Shape = ShapeKind.Ellipse, X = 60, Y = 0, W = 12, H = 12 },
+            new ShapeWidget { Shape = ShapeKind.Ellipse, X = 80, Y = 0, W = 12, H = 12, Filled = true },
+        } };
+        var fb = new Framebuffer();
+        new AppletRenderer(PixelTextRasterizer.Instance, StaticSensorSource.Demo(), new SensorHistory()).Render(applet, fb, DateTime.Now);
+        for (int x = 0; x < 10; x++) True(fb[x, 0], "waagerechte Linie lückenhaft");
+        True(fb[0, 19] && fb[9, 10] && !fb[0, 10], "steigende Linie falsch");
+        True(fb[20, 0] && fb[29, 7] && !fb[25, 4], "leeres Rechteck falsch");
+        True(fb[45, 4] && !fb[40, 0], "gefülltes Rechteck mit runden Ecken falsch");
+        True(fb[66, 0] && !fb[66, 6] && !fb[60, 0], "leeres Oval falsch");
+        True(fb[86, 6] && !fb[80, 0], "gefülltes Oval falsch");
+
+        var json = JsonSerializer.Serialize(applet, JsonDefaults.Options);
+        var back = JsonSerializer.Deserialize<Applet>(json, JsonDefaults.Options)!;
+        var sh = back.Widgets.OfType<ShapeWidget>().ToList();
+        Eq(6, sh.Count);
+        Eq(LineDirection.Rising, sh[1].Direction);
+        Eq(3, sh[3].Radius);
+        Eq("Oval", sh[4].KindName);
+    }),
+
     ("Übergang: Verschieben beim Applet-Wechsel", () =>
     {
         var from = new Framebuffer(); from.FillRect(0, 0, 10, 32);          // linker Balken
