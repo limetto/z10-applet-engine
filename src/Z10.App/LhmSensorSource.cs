@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using LibreHardwareMonitor.Hardware;
 using Z10.Core.Sensors;
 
