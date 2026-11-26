@@ -8,6 +8,10 @@ public enum ScreensaverKind
     Starfield,
     /// <summary>Fallende Zeichen wie in „Matrix“.</summary>
     Matrix,
+    /// <summary>Lagerfeuer mit Funkenflug unter einem Sternenhimmel.</summary>
+    Campfire,
+    /// <summary>Aquarium mit Fischen, Luftblasen und Wasserpflanzen.</summary>
+    Aquarium,
 }
 
 /// <summary>Ein Bildschirmschoner: zeichnet zu einer Zeit ein Bild. Zustand lebt im Objekt.</summary>
@@ -28,6 +32,8 @@ public static class Screensavers
         {
             ScreensaverKind.Starfield => new StarfieldSaver(rnd),
             ScreensaverKind.Matrix => new MatrixSaver(rnd),
+            ScreensaverKind.Campfire => new CampfireSaver(rnd),
+            ScreensaverKind.Aquarium => new AquariumSaver(rnd),
             _ => new LogoSaver(),
         };
     }
@@ -36,6 +42,8 @@ public static class Screensavers
     {
         ScreensaverKind.Starfield => "Sternenflug",
         ScreensaverKind.Matrix => "Matrix",
+        ScreensaverKind.Campfire => "Lagerfeuer",
+        ScreensaverKind.Aquarium => "Aquarium",
         _ => "Logo",
     };
 }
@@ -246,5 +254,256 @@ internal sealed class MatrixSaver : IScreensaver
         for (int cx = 0; cx < 3; cx++)
             for (int cy = 0; cy < 5; cy++)
                 if ((cols[cx] >> cy & 1) != 0) fb[x + cx, y + cy] = false;
+    }
+}
+
+/// <summary>
+/// Lagerfeuer: Wärmefeld wie beim klassischen „Doom-Feuer“ (Glut unten, steigt auf, kühlt ab, flackert im Wind),
+/// über ein 4×4-Bayer-Raster in Pixel umgesetzt. Dazu Holzscheite, aufsteigende Funken und funkelnde Sterne.
+/// </summary>
+internal sealed class CampfireSaver : IScreensaver
+{
+    private const int W = Framebuffer.DefaultWidth, H = Framebuffer.DefaultHeight;
+    private const int FireLeft = 52, FireRight = 108, SourceY = 28;
+    private const double StepSeconds = 1 / 40.0;
+
+    private static readonly int[] Bayer = { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
+
+    private readonly Random _rnd;
+    private readonly double[] _heat = new double[W * H];
+    private readonly List<(double X, double Y, double Vx, double Life)> _sparks = new();
+    private readonly (int X, int Y, double Phase)[] _stars;
+    private double _acc, _wind, _windTarget;
+
+    public CampfireSaver(Random rnd)
+    {
+        _rnd = rnd;
+        _stars = Enumerable.Range(0, 16).Select(_ =>
+        {
+            int x = _rnd.Next(2) == 0 ? _rnd.Next(2, 44) : _rnd.Next(116, 158);
+            return (x, _rnd.Next(1, 18), _rnd.NextDouble() * 10);
+        }).ToArray();
+        for (int i = 0; i < 80; i++) Step();   // Feuer schon brennend starten
+    }
+
+    public void Render(Framebuffer fb, double t, double dt)
+    {
+        _acc += dt;
+        while (_acc >= StepSeconds) { _acc -= StepSeconds; Step(); }
+
+        // Sterne funkeln
+        foreach (var (x, y, ph) in _stars)
+            if (Math.Sin(t * 1.7 + ph) > -0.6) fb[x, y] = true;
+
+        // Feuer
+        for (int y = 0; y < H; y++)
+            for (int x = FireLeft - 8; x <= FireRight + 8; x++)
+            {
+                double h = _heat[y * W + x];
+                if (h <= 0.04) continue;
+                double threshold = (Bayer[(y & 3) * 4 + (x & 3)] + 0.5) / 16.0;
+                if (h > 0.7 || h > threshold * 0.7 + 0.1) fb[x, y] = true;
+            }
+
+        // Funken
+        foreach (var sp in _sparks)
+            fb[(int)Math.Round(sp.X), (int)Math.Round(sp.Y)] = true;
+
+        // Holzscheite (über den Flammen, mit ausgesparter Maserung)
+        DrawLog(fb, FireLeft + 4, 31, FireRight - 4, 27);
+        DrawLog(fb, FireLeft + 4, 27, FireRight - 4, 31);
+        // Boden
+        for (int x = 0; x < W; x += 3) fb[x, H - 1] = true;
+    }
+
+    private static void DrawLog(MonoBitmap fb, int x0, int y0, int x1, int y1)
+    {
+        fb.DrawThickLine(x0, y0, x1, y1, 3);
+        fb.DrawLine(x0 + 3, y0, x1 - 3, y1, false);   // Maserung
+    }
+
+    private void Step()
+    {
+        // Wind ändert sich langsam
+        if (_rnd.NextDouble() < 0.02) _windTarget = (_rnd.NextDouble() - 0.5) * 1.2;
+        _wind += (_windTarget - _wind) * 0.05;
+
+        // Glutquelle: in der Mitte heiß, zum Rand hin schwächer; einzelne Stellen lodern kurz auf
+        double mid = (FireLeft + FireRight) / 2.0, half = (FireRight - FireLeft) / 2.0;
+        for (int x = FireLeft; x <= FireRight; x++)
+        {
+            double env = Math.Pow(Math.Cos((x - mid) / half * Math.PI / 2), 1.4);
+            double v = env * (1.0 + _rnd.NextDouble() * 0.3);
+            if (_rnd.NextDouble() < 0.04) v *= 0.4;                        // kurz dunkle Stelle → Zungen
+            _heat[SourceY * W + x] = v;
+            _heat[(SourceY + 1) * W + x] = v;
+        }
+
+        // „Doom-Feuer“: jede Zelle übernimmt die Wärme von unten, leicht seitlich versetzt und zufällig abgekühlt.
+        // Der zufällige Versatz pro Pixel erzeugt die flackernden Flammenzungen.
+        int lo = FireLeft - 10, hi = FireRight + 10;
+        for (int y = 0; y < SourceY; y++)
+            for (int x = lo; x <= hi; x++)
+            {
+                double src = _heat[(y + 1) * W + x];
+                int shift = _rnd.Next(3) - 1;                                    // symmetrisch, sonst kippt das Feuer
+                if (_rnd.NextDouble() < Math.Abs(_wind) * 0.4) shift += Math.Sign(_wind);
+                int dx = Math.Clamp(x + shift, lo, hi);
+                _heat[y * W + dx] = Math.Max(0, src - _rnd.Next(2) * 0.068 - _rnd.NextDouble() * 0.01);
+            }
+
+        // Funken
+        if (_rnd.NextDouble() < 0.12)
+            _sparks.Add((FireLeft + half + (_rnd.NextDouble() - 0.5) * half, 12 + _rnd.NextDouble() * 6,
+                (_rnd.NextDouble() - 0.5) * 0.6, 0.8 + _rnd.NextDouble() * 1.2));
+        for (int i = _sparks.Count - 1; i >= 0; i--)
+        {
+            var sp = _sparks[i];
+            sp.X += (sp.Vx + _wind) * 12 * StepSeconds + (_rnd.NextDouble() - 0.5) * 0.4;
+            sp.Y -= 10 * StepSeconds;
+            sp.Life -= StepSeconds;
+            if (sp.Life <= 0 || sp.Y < 0) _sparks.RemoveAt(i); else _sparks[i] = sp;
+        }
+    }
+}
+
+/// <summary>Aquarium: Fische verschiedener Form schwimmen hin und her, Blasen steigen auf, Pflanzen wiegen sich.</summary>
+internal sealed class AquariumSaver : IScreensaver
+{
+    private const int W = Framebuffer.DefaultWidth, H = Framebuffer.DefaultHeight;
+
+    // Nach rechts schauend, '#' = Pixel, '.' = leer. Zwei Bilder je Fisch (Schwanzschlag).
+    private static readonly string[][][] Shapes =
+    {
+        new[] {
+            new[] { "....####..", "#.#####.#.", "##########", "#.#######.", "....####.." },
+            new[] { "....####..", ".######.#.", "##########", ".########.", "....####.." },
+        },
+        new[] {
+            new[] { "#.###.", "####.#", "#.###." },
+            new[] { ".####.", "####.#", ".####." },
+        },
+        new[] {
+            new[] { "...#...", "..###..", "#.####.", "####.##", "#.####.", "..###..", "...#..." },
+            new[] { "...#...", "..###..", ".#####.", "####.##", ".#####.", "..###..", "...#..." },
+        },
+        new[] {
+            new[] { "#...######...", "##.########..", "#############", "##.##########", "#...######..." },
+            new[] { "....######...", "#..########..", "#############", "#..##########", "....######..." },
+        },
+    };
+
+    private sealed class Fish
+    {
+        public int Shape;
+        public double X, BaseY, Speed, Phase;
+        public int Dir;
+        public double NextTurn;
+    }
+
+    private readonly Random _rnd;
+    private readonly List<Fish> _fish = new();
+    private readonly List<(double X, double Y, int Size, double Phase)> _bubbles = new();
+    private readonly (int X, int Height, double Phase)[] _plants;
+    private readonly (int X, int W)[] _stones;
+    private double _bubbleTimer;
+
+    public AquariumSaver(Random rnd)
+    {
+        _rnd = rnd;
+        int[] shapes = { 0, 1, 2, 3, 1, 0 };
+        foreach (var shape in shapes)
+        {
+            var f = new Fish { Shape = shape, Dir = _rnd.Next(2) == 0 ? 1 : -1, Phase = _rnd.NextDouble() * 10 };
+            int h = Shapes[shape][0].Length;
+            f.BaseY = 2 + _rnd.NextDouble() * Math.Max(1, H - 9 - h);
+            f.X = _rnd.NextDouble() * W;
+            f.Speed = shape == 1 ? 14 + _rnd.NextDouble() * 8 : 6 + _rnd.NextDouble() * 8;
+            f.NextTurn = 4 + _rnd.NextDouble() * 12;
+            _fish.Add(f);
+        }
+        _plants = new[] { (8, 14, 0.0), (14, 9, 1.3), (70, 11, 2.1), (122, 16, 0.7), (129, 10, 2.9), (150, 12, 1.7) };
+        _stones = new[] { (30, 5), (95, 7), (108, 4) };
+    }
+
+    public void Render(Framebuffer fb, double t, double dt)
+    {
+        // Boden: Sand und Steine
+        for (int x = 0; x < W; x++) if ((x * 7 + 3) % 5 < 2) fb[x, H - 1] = true;
+        foreach (var (sx, sw) in _stones) fb.DrawEllipse(sx, H - 4, sw, 5, filled: true);
+
+        // Pflanzen wiegen sich (oben mehr als unten)
+        foreach (var (px, height, ph) in _plants)
+        {
+            int prevX = px, prevY = H - 1;
+            for (int k = 1; k <= height; k++)
+            {
+                int y = H - 1 - k;
+                int x = px + (int)Math.Round(Math.Sin(t * 1.1 + ph + k * 0.35) * k / 5.0);
+                fb.DrawLine(prevX, prevY, x, y);
+                if (k % 4 == 2) fb[x + (k % 8 == 2 ? 1 : -1), y] = true;   // Blättchen
+                prevX = x; prevY = y;
+            }
+        }
+
+        // Blasen aus dem Sprudelstein und ab und zu von einem Fisch
+        _bubbleTimer -= dt;
+        if (_bubbleTimer <= 0)
+        {
+            _bubbleTimer = 0.25 + _rnd.NextDouble() * 0.5;
+            _bubbles.Add((100 + _rnd.NextDouble() * 2, H - 4, _rnd.Next(3) == 0 ? 2 : 1, _rnd.NextDouble() * 6));
+        }
+        if (_rnd.NextDouble() < dt * 0.3)
+        {
+            var f = _fish[_rnd.Next(_fish.Count)];
+            int w = Shapes[f.Shape][0][0].Length;
+            _bubbles.Add((f.Dir > 0 ? f.X + w : f.X - 1, f.BaseY, 1, _rnd.NextDouble() * 6));
+        }
+        for (int i = _bubbles.Count - 1; i >= 0; i--)
+        {
+            var b = _bubbles[i];
+            b.Y -= dt * (b.Size == 2 ? 9 : 7);
+            if (b.Y < -2) { _bubbles.RemoveAt(i); continue; }
+            _bubbles[i] = b;
+            int bx = (int)Math.Round(b.X + Math.Sin(t * 3 + b.Phase) * 0.8), by = (int)Math.Round(b.Y);
+            if (b.Size == 1) fb[bx, by] = true;
+            else { fb[bx, by - 1] = fb[bx - 1, by] = fb[bx + 1, by] = fb[bx, by + 1] = true; }
+        }
+
+        // Fische
+        foreach (var f in _fish)
+        {
+            var frames = Shapes[f.Shape];
+            int w = frames[0][0].Length, h = frames[0].Length;
+            f.X += f.Dir * f.Speed * dt;
+            f.NextTurn -= dt;
+            bool offRight = f.Dir > 0 && f.X > W + 4, offLeft = f.Dir < 0 && f.X < -w - 4;
+            if (offRight || offLeft || (f.NextTurn <= 0 && f.X > 10 && f.X < W - w - 10))
+            {
+                if (f.NextTurn <= 0 || _rnd.Next(3) > 0) f.Dir = -f.Dir;    // meist umdrehen, manchmal …
+                else { f.X = f.Dir > 0 ? -w - 2 : W + 2; f.BaseY = 2 + _rnd.NextDouble() * Math.Max(1, H - 9 - h); }
+                f.NextTurn = 5 + _rnd.NextDouble() * 14;
+            }
+            int y = (int)Math.Round(f.BaseY + Math.Sin(t * 1.3 + f.Phase) * 1.2);
+            var frame = frames[(int)(t * (f.Speed / 4) + f.Phase) % 2];
+            DrawFish(fb, frame, (int)Math.Round(f.X), y, f.Dir < 0);
+        }
+    }
+
+    private static void DrawFish(MonoBitmap fb, string[] rows, int x, int y, bool mirror)
+    {
+        int w = rows[0].Length;
+        for (int r = 0; r < rows.Length; r++)
+        {
+            string row = rows[r];
+            int first = row.IndexOf('#'), last = row.LastIndexOf('#');
+            if (first < 0) continue;
+            for (int c = first; c <= last; c++)
+            {
+                // Innerhalb des Körpers auch Löcher (Auge) setzen, damit Pflanzen dahinter verdeckt werden
+                int col = mirror ? w - 1 - c : c;
+                fb[x + col, y + r] = row[c] == '#';
+            }
+        }
     }
 }
