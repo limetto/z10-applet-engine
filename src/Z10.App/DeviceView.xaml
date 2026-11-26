@@ -43,7 +43,7 @@
             <TextBlock Text="Kontrast" Style="{StaticResource Label}"/>
           </DockPanel>
           <Slider x:Name="ContrastSlider" Minimum="1" Maximum="5" TickFrequency="1" IsSnapToTickEnabled="True" TickPlacement="BottomRight" ValueChanged="Backlight_Changed"/>
-          <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0" Text="Die Farbe des Displays schaltest du an der Tastatur mit FN um."/>
+          <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0" Text="Die Farbe des Displays stellst du unter „Beleuchtung“ ein."/>
 
           <TextBlock Text="Verhalten" Style="{StaticResource H2}" Margin="0,20,0,4"/>
           <TextBlock Text="Pause zwischen Display-Seiten" Style="{StaticResource Label}"/>
@@ -51,6 +51,30 @@
           <CheckBox x:Name="ReleaseOnExitBox" Content="Beim Beenden Display an die Tastatur zurückgeben" Click="Behavior_Click" Margin="0,12,0,4"/>
           <CheckBox x:Name="BootBox" Content="Startanimation (auf der Tastatur und im Startfenster)" Click="Behavior_Click"/>
           <CheckBox x:Name="AutoStartBox" Content="Mit Windows starten (über die Aufgabenplanung, ohne UAC-Abfrage)" Click="AutoStart_Click"/>
+
+          <TextBlock Text="Bildschirmschoner" Style="{StaticResource H2}" Margin="0,20,0,4"/>
+          <CheckBox x:Name="SaverBox" Content="Bildschirmschoner auf dem Display" Click="Saver_Changed"/>
+          <Grid Margin="0,4,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="12"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <TextBlock Text="Nach" Style="{StaticResource Label}"/>
+              <ComboBox x:Name="SaverMinutesBox" SelectionChanged="Saver_Changed"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+              <TextBlock Text="Motiv" Style="{StaticResource Label}"/>
+              <ComboBox x:Name="SaverKindBox" SelectionChanged="Saver_Changed"/>
+            </StackPanel>
+          </Grid>
+          <CheckBox x:Name="SaverMouseBox" Content="Mausbewegungen zählen auch als Eingabe" Click="Saver_Changed" Margin="0,8,0,0"/>
+          <DockPanel Margin="0,8,0,0">
+            <Button DockPanel.Dock="Left" Content="Vorschau (10 s)" Click="SaverPreview_Click"/>
+            <TextBlock Style="{StaticResource Hint}" Margin="10,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap"
+                       Text="Startet, wenn so lange keine Taste gedrückt wurde. Der erste Tastendruck beendet ihn (E-Tasten schalten dabei nicht weiter)."/>
+          </DockPanel>
 
           <TextBlock Text="Tasten E6 / E7" Style="{StaticResource H2}" Margin="0,20,0,4"/>
           <CheckBox x:Name="KeysBox" Content="E-Tasten auswerten" Click="Keys_Changed"/>

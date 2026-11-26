@@ -509,6 +509,56 @@ var tests = new List<(string Name, Action Body)>
         True(dev.Pages.Count >= 4, "nach der Wartezeit nichts gesendet");
     }),
 
+    ("Bildschirmschoner: alle Arten zeichnen etwas und bleiben im Bild", () =>
+    {
+        foreach (var kind in Enum.GetValues<ScreensaverKind>())
+        {
+            var saver = Screensavers.Create(kind, seed: 1);
+            int lit = 0;
+            for (int i = 0; i < 60; i++)
+            {
+                var fb = new Framebuffer();
+                saver.Render(fb, i * 0.05, 0.05);
+                for (int y = 0; y < fb.Height; y++) for (int x = 0; x < fb.Width; x++) if (fb[x, y]) lit++;
+            }
+            True(lit > 60 * 20, $"{kind}: zu wenig gezeichnet ({lit})");
+        }
+    }),
+
+    ("Bildschirmschoner: startet nach Leerlauf, Taste weckt nur auf", () =>
+    {
+        var idle = TimeSpan.Zero;
+        var frames = new List<Applet>();
+        var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => null, () => false,
+            new AppSettings { BootAnimation = false, ScreensaverEnabled = true, ScreensaverMinutes = 2 })
+        { ConnectGrace = TimeSpan.Zero, IdleTime = () => idle };
+        var a1 = new Applet { Name = "A", Order = 0, Widgets = { new TextWidget { Text = "A", W = 20, H = 7 } } };
+        var a2 = new Applet { Name = "B", Order = 1, Widgets = { new TextWidget { Text = "B", W = 20, H = 7 } } };
+        e.SetApplets(new[] { a1, a2 });
+        e.FrameRendered += (_, a) => frames.Add(a);
+        var t = DateTime.UtcNow;
+        e.Tick(t);
+        True(!e.ScreensaverActive, "zu früh aktiv");
+        idle = TimeSpan.FromMinutes(1);
+        e.Tick(t.AddSeconds(1));
+        True(!e.ScreensaverActive, "nach 1 min schon aktiv");
+        // E-Tasten-Aktivität liegt 0 s zurück → interner Zähler muss ebenfalls ablaufen: Zeit des Ticks vorspulen
+        idle = TimeSpan.FromMinutes(3);
+        e.Tick(DateTime.UtcNow.AddMinutes(3));
+        True(e.ScreensaverActive, "nach 3 min nicht aktiv");
+        Eq("Bildschirmschoner", frames[^1].Name);
+        var current = e.Current?.Name;
+        e.HandleKey(Z10Keys.Parse(new byte[] { 0x09, 0xE2, 0x0F, 0x07, 0x03, 0x01, 0, 0, 0 })!.Value);   // E7
+        Eq(current, e.Current?.Name);                       // erster Druck schaltet nicht weiter
+        idle = TimeSpan.Zero;
+        e.Tick(DateTime.UtcNow.AddSeconds(1));
+        True(!e.ScreensaverActive, "nach Taste noch aktiv");
+
+        e.PreviewScreensaver(TimeSpan.FromSeconds(5));
+        e.Tick(DateTime.UtcNow);
+        True(e.ScreensaverActive, "Vorschau startet nicht");
+    }),
+
     ("Übergang: Verschieben beim Applet-Wechsel", () =>
     {
         var from = new Framebuffer(); from.FillRect(0, 0, 10, 32);          // linker Balken

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using Z10.Core.Rendering;
 using Z10.Core.Sensors;
 using Z10.Core.Storage;
 
@@ -40,6 +41,13 @@ public partial class DeviceView : UserControl
         DelayBox.SelectedIndex = Math.Max(0, Array.IndexOf(Delays, s.PageDelayMs));
         ReleaseOnExitBox.IsChecked = s.ReleaseOnExit;
         BootBox.IsChecked = s.BootAnimation;
+        foreach (var m in SaverMinutes) SaverMinutesBox.Items.Add(m == 1 ? "1 Minute" : $"{m} Minuten");
+        foreach (var k in Enum.GetValues<ScreensaverKind>()) SaverKindBox.Items.Add(Screensavers.DisplayName(k));
+        SaverBox.IsChecked = s.ScreensaverEnabled;
+        int mi = Array.IndexOf(SaverMinutes, s.ScreensaverMinutes);
+        SaverMinutesBox.SelectedIndex = mi < 0 ? Array.IndexOf(SaverMinutes, 5) : mi;
+        SaverKindBox.SelectedIndex = (int)s.ScreensaverKind;
+        SaverMouseBox.IsChecked = s.ScreensaverIncludeMouse;
         foreach (var k in KeyActions) { E6Box.Items.Add(k.Label); E7Box.Items.Add(k.Label); }
         KeysBox.IsChecked = s.KeysEnabled;
         E6Box.SelectedIndex = Math.Max(0, Array.FindIndex(KeyActions, k => k.Action == s.E6Action));
@@ -132,6 +140,25 @@ public partial class DeviceView : UserControl
         if (_loading || DelayBox.SelectedIndex < 0) return;
         _state.Settings.PageDelayMs = Delays[DelayBox.SelectedIndex];
         _state.SaveSettings();
+    }
+
+    private static readonly int[] SaverMinutes = { 1, 2, 3, 5, 10, 15, 20, 30, 45, 60 };
+
+    private void Saver_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        var s = _state.Settings;
+        s.ScreensaverEnabled = SaverBox.IsChecked == true;
+        if (SaverMinutesBox.SelectedIndex >= 0) s.ScreensaverMinutes = SaverMinutes[SaverMinutesBox.SelectedIndex];
+        if (SaverKindBox.SelectedIndex >= 0) s.ScreensaverKind = (ScreensaverKind)SaverKindBox.SelectedIndex;
+        s.ScreensaverIncludeMouse = SaverMouseBox.IsChecked == true;
+        _state.SaveSettings();
+    }
+
+    private void SaverPreview_Click(object sender, RoutedEventArgs e)
+    {
+        Saver_Changed(sender, e);
+        _state.Engine.PreviewScreensaver(TimeSpan.FromSeconds(10));
     }
 
     private void Behavior_Click(object sender, RoutedEventArgs e)

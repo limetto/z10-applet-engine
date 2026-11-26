@@ -14,6 +14,7 @@ public partial class App : Application
     private Forms.ToolStripMenuItem? _pauseItem;
     private MainWindow? _window;
     private bool _exiting;
+    private InputIdle? _idle;
 
     public AppState State { get; private set; } = null!;
 
@@ -33,6 +34,9 @@ public partial class App : Application
 
         State = new AppState();
         LcdImage.SetColor(State.Settings.Lighting?.DisplayColor);
+        var idle = new InputIdle();
+        _idle = idle;
+        State.Engine.IdleTime = () => idle.Idle(State.Settings.ScreensaverIncludeMouse);
         State.Engine.Start();
 
         _window = new MainWindow(State);
@@ -141,6 +145,7 @@ public partial class App : Application
         SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         SystemEvents.SessionSwitch -= OnSessionSwitch;
         State.Engine.SetPreview(null);
+        _idle?.Dispose();
         State.Dispose();                 // gibt das Display frei, wenn so eingestellt
         if (_tray is not null)
         {

@@ -30,6 +30,17 @@ public sealed class AppSettings
     /// <summary>Startanimation auf der Tastatur und im Startfenster.</summary>
     public bool BootAnimation { get; set; } = true;
 
+    /// <summary>Bildschirmschoner nach Inaktivität.</summary>
+    public bool ScreensaverEnabled { get; set; }
+
+    /// <summary>Minuten ohne Eingabe bis zum Bildschirmschoner.</summary>
+    public int ScreensaverMinutes { get; set; } = 5;
+
+    public Rendering.ScreensaverKind ScreensaverKind { get; set; } = Rendering.ScreensaverKind.Starfield;
+
+    /// <summary>Auch Mausbewegungen zählen als Eingabe (sonst nur die Tastatur).</summary>
+    public bool ScreensaverIncludeMouse { get; set; }
+
     /// <summary>Verschiebeanimation beim Applet-Wechsel.</summary>
     public bool TransitionEnabled { get; set; }
 

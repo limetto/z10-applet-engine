@@ -54,6 +54,86 @@ public sealed class AppletEngine : IDisposable
 
     /// <summary>Pseudo-Applet, unter dem die Startanimation gemeldet wird.</summary>
     public static readonly Applet BootApplet = new() { Id = "boot", Name = "Startanimation" };
+    public static readonly Applet ScreensaverApplet = new() { Id = "screensaver", Name = "Bildschirmschoner" };
+
+    // ---- Bildschirmschoner ----
+    private IScreensaver? _saver;
+    private ScreensaverKind _saverKind;
+    private DateTime _saverStart, _saverLast;
+    private DateTime _saverPreviewUntil;
+    private DateTime _lastActivity = DateTime.UtcNow;
+
+    /// <summary>Zeit seit der letzten Eingabe (von der App, z. B. Tastatur-Hook). Null = nur E-Tasten zählen.</summary>
+    public Func<TimeSpan>? IdleTime { get; set; }
+
+    /// <summary>true, solange der Bildschirmschoner läuft.</summary>
+    public bool ScreensaverActive { get { lock (_lock) return _saver is not null; } }
+
+    /// <summary>Eingabe bemerkt (beendet den Bildschirmschoner).</summary>
+    public void NotifyActivity()
+    {
+        lock (_lock) { _lastActivity = DateTime.UtcNow; _saverPreviewUntil = DateTime.MinValue; }
+    }
+
+    /// <summary>Bildschirmschoner zum Ausprobieren für einige Sekunden zeigen.</summary>
+    public void PreviewScreensaver(TimeSpan duration)
+    {
+        lock (_lock)
+        {
+            _saverPreviewUntil = DateTime.UtcNow + duration;
+            _saver = null;   // mit der aktuellen Auswahl neu starten
+        }
+    }
+
+    private bool ScreensaverDue(DateTime now)
+    {
+        if (now < _saverPreviewUntil) return true;
+        if (!_settings.ScreensaverEnabled || _previewOverride is not null || _bootFrames is not null) return false;
+        var idle = now - _lastActivity;
+        if (IdleTime is not null)
+        {
+            var external = IdleTime();
+            if (external < idle) idle = external;
+        }
+        return idle >= TimeSpan.FromMinutes(Math.Max(1, _settings.ScreensaverMinutes));
+    }
+
+    /// <returns>true, wenn der Bildschirmschoner gezeichnet hat (dann keine Applets).</returns>
+    private bool HandleScreensaver(DateTime now)
+    {
+        if (!ScreensaverDue(now))
+        {
+            if (_saver is not null)
+            {
+                // Ende: Applet sofort und komplett zurück
+                _saver = null;
+                _transFrom = null;
+                _display?.Invalidate();
+                _nextRender = DateTime.MinValue;
+                _switchAt = now.AddSeconds(CurrentDuration());
+            }
+            return false;
+        }
+        if (_saver is null || _saverKind != _settings.ScreensaverKind)
+        {
+            _saverKind = _settings.ScreensaverKind;
+            _saver = Screensavers.Create(_saverKind);
+            _saverStart = _saverLast = now;
+            _transFrom = null;
+        }
+        if (now - _saverLast < TimeSpan.FromMilliseconds(ScreensaverFrameMs) && _saverLast != _saverStart) return true;
+        double dt = Math.Clamp((now - _saverLast).TotalSeconds, 0, 0.25);
+        _saverLast = now;
+        var fb = new Framebuffer();
+        _saver.Render(fb, (now - _saverStart).TotalSeconds, dt);
+        _shownFrame = fb;
+        FrameRendered?.Invoke(fb, ScreensaverApplet);
+        if (_display is not null && !Suspended) TryDevice(() => ShowOnDevice(fb));
+        return true;
+    }
+
+    /// <summary>Mindestabstand der Bildschirmschoner-Bilder (die Tastatur begrenzt zusätzlich).</summary>
+    public int ScreensaverFrameMs { get; set; } = 40;
 
     /// <summary>
     /// Abstand, in dem alle Seiten neu gesendet werden, auch wenn sich nichts geändert hat. Fängt ab, dass die
@@ -142,7 +222,15 @@ public sealed class AppletEngine : IDisposable
     /// <summary>Führt die eingestellte Aktion einer E-Taste aus (nur beim Drücken, nicht beim Loslassen).</summary>
     public void HandleKey(Device.Z10Keys.KeyEvent key)
     {
-        // Die Firmware meldet auch normale Tasten – die werden bewusst gar nicht ausgewertet oder angezeigt
+        // Jede gemeldete Taste zählt als Aktivität (beendet den Bildschirmschoner) …
+        if (key.Pressed)
+        {
+            bool wasSaving;
+            lock (_lock) wasSaving = _saver is not null;
+            NotifyActivity();
+            if (wasSaving) return;   // erster Druck weckt nur auf
+        }
+        // … ausgewertet und angezeigt werden aber nur die E-Tasten
         if (!key.Pressed || !key.IsEKey || !_settings.KeysEnabled) return;
         var action = key.Code switch
         {
@@ -393,8 +481,9 @@ public sealed class AppletEngine : IDisposable
         {
             HandleDevice(utcNow);
             if (_sensorThread is null) HandleSensors(utcNow);   // ohne Start() (Tests): direkt im Takt
-            HandleRotation(utcNow);
             if (_display is not null && utcNow < _deviceReadyAt) return;   // Tastatur gerade erst geöffnet
+            if (HandleScreensaver(utcNow)) return;
+            HandleRotation(utcNow);
             HandleRender(utcNow);
         }
     }
@@ -406,7 +495,7 @@ public sealed class AppletEngine : IDisposable
             RunPendingJob();
             try { Tick(DateTime.UtcNow); }
             catch (Exception ex) { SetStatus(EngineState.Error, "Fehler: " + ex.Message); }
-            Thread.Sleep(_transFrom is not null ? 1 : 50);   // Übergang so flüssig wie die Tastatur erlaubt
+            Thread.Sleep(_transFrom is not null || _saver is not null ? 5 : 50);   // Übergang so flüssig wie die Tastatur erlaubt
         }
     }
 
