@@ -485,6 +485,43 @@ var tests = new List<(string Name, Action Body)>
         True(e.Paused, "Tasten trotz Abschaltung ausgewertet");
     }),
 
+    ("Übergang: Verschieben beim Applet-Wechsel", () =>
+    {
+        var from = new Framebuffer(); from.FillRect(0, 0, 10, 32);          // linker Balken
+        var to = new Framebuffer(); to.FillRect(150, 0, 10, 32);            // rechter Balken
+        True(AppletEngine.ComposeSlide(from, to, 1, 0).Same(from), "t=0 ≠ altes Bild");
+        True(AppletEngine.ComposeSlide(from, to, 1, 1).Same(to), "t=1 ≠ neues Bild");
+        True(AppletEngine.ComposeSlide(from, to, -1, 1).Same(to), "t=1 (links) ≠ neues Bild");
+        var mid = AppletEngine.ComposeSlide(from, to, 1, 0.5);
+        True(!mid[5, 0], "altes Bild nicht nach links geschoben");
+
+        var frames = new List<Framebuffer>();
+        var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => null, () => false,
+            new AppSettings { BootAnimation = false, TransitionEnabled = true, TransitionMs = 400 });
+        var a1 = new Applet { Name = "A", Order = 0, Widgets = { new TextWidget { Text = "AAAA", X = 0, W = 40, H = 7 } } };
+        var a2 = new Applet { Name = "B", Order = 1, Widgets = { new TextWidget { Text = "BBBB", X = 0, W = 40, H = 7 } } };
+        e.SetApplets(new[] { a1, a2 });
+        e.FrameRendered += (fb, _) => frames.Add(fb.Clone());
+        var t0 = DateTime.UtcNow;
+        e.Tick(t0);
+        var first = frames[^1];
+        e.Next();
+        True(e.InTransition, "kein Übergang gestartet");
+        e.Tick(t0.AddMilliseconds(10));
+        e.Tick(t0.AddMilliseconds(150));
+        var during = frames[^1];
+        True(!during.Same(first), "Übergangsbild = altes Bild");
+        e.Tick(t0.AddMilliseconds(500));
+        True(!e.InTransition, "Übergang endet nicht");
+
+        var plain = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => null, () => false,
+            new AppSettings { BootAnimation = false });
+        plain.SetApplets(new[] { a1, a2 });
+        plain.Tick(t0);
+        plain.Next();
+        True(!plain.InTransition, "Übergang trotz Abschaltung");
+    }),
+
     ("Tastenlayout: Positionen passen zu den Mitschnitten", () =>
     {
         Eq(256, Z10Lighting.KeyTable.Length);
@@ -678,5 +715,17 @@ sealed class FakeLightingKeyboard
             if (_lastCmd == 0x90) Mask.CopyTo(r, 8);
             return r;
         };
+    }
+}
+
+static class ImageCompare
+{
+    public static bool Same(this MonoBitmap a, MonoBitmap b)
+    {
+        if (a.Width != b.Width || a.Height != b.Height) return false;
+        for (int y = 0; y < a.Height; y++)
+            for (int x = 0; x < a.Width; x++)
+                if (a[x, y] != b[x, y]) return false;
+        return true;
     }
 }

@@ -31,6 +31,10 @@ public sealed class AppletEngine : IDisposable
     private string? _currentId;
     private Applet? _previewOverride;
     private Applet? _lastShown;
+    private Framebuffer? _shownFrame;          // zuletzt angezeigtes Bild (Ausgangsbild für Übergänge)
+    private Framebuffer? _transFrom;           // laufender Übergang: altes Bild
+    private int _transDir;                     // +1 = neues Applet kommt von rechts, -1 = von links
+    private DateTime _transStart;
     private bool _blink;
     private bool _backlightDirty = true;
     private DateTime _nextFullRefresh;
@@ -165,10 +169,47 @@ public sealed class AppletEngine : IDisposable
             if (enabled.Count == 0) return;
             int idx = enabled.FindIndex(a => a.Id == _currentId);
             idx = idx < 0 ? 0 : (idx + dir + enabled.Count) % enabled.Count;
+            if (enabled[idx].Id != _currentId) StartTransition(dir);
             _currentId = enabled[idx].Id;
             _switchAt = DateTime.UtcNow.AddSeconds(CurrentDuration());
             _nextRender = DateTime.MinValue;
         }
+    }
+
+    /// <summary>true, solange eine Übergangsanimation läuft.</summary>
+    public bool InTransition { get { lock (_lock) return _transFrom is not null; } }
+
+    private void StartTransition(int dir)
+    {
+        if (!_settings.TransitionEnabled || _settings.TransitionMs <= 0 || _shownFrame is null
+            || _previewOverride is not null || _bootFrames is not null)
+        {
+            _transFrom = null;
+            return;
+        }
+        _transFrom = _shownFrame.Clone();
+        _transDir = dir >= 0 ? 1 : -1;
+        _transStart = DateTime.MinValue;   // Uhr startet mit dem ersten Übergangsbild
+    }
+
+    /// <summary>Setzt altes und neues Bild für Fortschritt <paramref name="t"/> (0..1) nebeneinander.</summary>
+    public static Framebuffer ComposeSlide(MonoBitmap from, MonoBitmap to, int dir, double t)
+    {
+        double eased = 1 - Math.Pow(1 - Math.Clamp(t, 0, 1), 3);   // ease-out
+        int w = Z10Protocol.Width;
+        int offset = (int)Math.Round(eased * w);
+        var fb = new Framebuffer();
+        if (dir >= 0)
+        {
+            fb.Blit(from, -offset, 0);
+            fb.Blit(to, w - offset, 0);
+        }
+        else
+        {
+            fb.Blit(from, offset, 0);
+            fb.Blit(to, offset - w, 0);
+        }
+        return fb;
     }
 
     private int CurrentDuration()
@@ -355,7 +396,7 @@ public sealed class AppletEngine : IDisposable
             RunPendingJob();
             try { Tick(DateTime.UtcNow); }
             catch (Exception ex) { SetStatus(EngineState.Error, "Fehler: " + ex.Message); }
-            Thread.Sleep(50);
+            Thread.Sleep(_transFrom is not null ? 1 : 50);   // Übergang so flüssig wie die Tastatur erlaubt
         }
     }
 
@@ -482,6 +523,30 @@ public sealed class AppletEngine : IDisposable
                      ?? _applets.FirstOrDefault(a => a.Enabled && a.ShowOnWarning && _renderer.HasWarning(a))
                      ?? _applets.FirstOrDefault(a => a.Id == _currentId);
         if (applet is null) return;
+
+        if (_transFrom is not null)
+        {
+            if (_previewOverride is not null || applet.Id != _currentId) _transFrom = null;   // Warnung/Editor hat Vorrang
+            else
+            {
+                if (_transStart == DateTime.MinValue) _transStart = now;
+                double t = (now - _transStart).TotalMilliseconds / Math.Max(1, _settings.TransitionMs);
+                if (t < 1)
+                {
+                    var target = new Framebuffer();
+                    _renderer.Render(applet, target, DateTime.Now, _blink);
+                    var slide = ComposeSlide(_transFrom, target, _transDir, t);
+                    _lastShown = applet;
+                    _shownFrame = slide;     // erneuter Wechsel mitten im Übergang startet vom aktuellen Bild
+                    FrameRendered?.Invoke(slide, applet);
+                    if (_display is not null && !Suspended) TryDevice(() => ShowOnDevice(slide));
+                    return;
+                }
+                _transFrom = null;
+                _nextRender = DateTime.MinValue;
+            }
+        }
+
         if (!ReferenceEquals(applet, _lastShown)) _nextRender = DateTime.MinValue;
         if (now < _nextRender) return;
         int refresh = Math.Max(100, applet.RefreshMs);
@@ -498,6 +563,7 @@ public sealed class AppletEngine : IDisposable
         var fb = new Framebuffer();
         _renderer.Render(applet, fb, DateTime.Now, _blink);
         _lastShown = applet;
+        _shownFrame = fb;
         FrameRendered?.Invoke(fb, applet);
         if (_display is not null && !Suspended) TryDevice(() => ShowOnDevice(fb));
     }

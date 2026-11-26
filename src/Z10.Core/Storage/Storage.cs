@@ -30,6 +30,12 @@ public sealed class AppSettings
     /// <summary>Startanimation auf der Tastatur und im Startfenster.</summary>
     public bool BootAnimation { get; set; } = true;
 
+    /// <summary>Verschiebeanimation beim Applet-Wechsel.</summary>
+    public bool TransitionEnabled { get; set; }
+
+    /// <summary>Dauer der Verschiebeanimation in ms.</summary>
+    public int TransitionMs { get; set; } = 400;
+
     /// <summary>E-Tasten der Tastatur auswerten.</summary>
     public bool KeysEnabled { get; set; } = true;
     public KeyAction E6Action { get; set; } = KeyAction.Previous;

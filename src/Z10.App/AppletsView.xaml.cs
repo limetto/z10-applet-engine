@@ -16,6 +16,8 @@ public partial class AppletsView : UserControl
     private static readonly (string Label, int Ms)[] Refreshes =
         { ("0,25 s", 250), ("0,5 s", 500), ("1 s", 1000), ("2 s", 2000), ("5 s", 5000) };
 
+    private static readonly int[] TransitionDurations = { 200, 300, 400, 600, 800, 1000 };
+
     private readonly AppState _state;
     private readonly WriteableBitmap _bitmap = LcdImage.Create();
     private bool _loading;
@@ -31,6 +33,13 @@ public partial class AppletsView : UserControl
         Preview.Source = _bitmap;
         foreach (var d in Durations) DurationBox.Items.Add(d.Label);
         foreach (var r in Refreshes) RefreshBox.Items.Add(r.Label);
+        foreach (var ms in TransitionDurations) TransitionBox.Items.Add($"{ms / 1000.0:0.0#} s");
+        _loading = true;
+        TransitionCheck.IsChecked = state.Settings.TransitionEnabled;
+        int ti = Array.IndexOf(TransitionDurations, state.Settings.TransitionMs);
+        TransitionBox.SelectedIndex = ti < 0 ? 2 : ti;
+        TransitionBox.IsEnabled = state.Settings.TransitionEnabled;
+        _loading = false;
 
         List.ItemsSource = _state.Applets;
         _state.AppletsChanged += () => List.Items.Refresh();
@@ -163,6 +172,15 @@ public partial class AppletsView : UserControl
 
     private void Prev_Click(object sender, RoutedEventArgs e) => _state.Engine.Previous();
     private void Next_Click(object sender, RoutedEventArgs e) => _state.Engine.Next();
+
+    private void Transition_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _state.Settings.TransitionEnabled = TransitionCheck.IsChecked == true;
+        if (TransitionBox.SelectedIndex >= 0) _state.Settings.TransitionMs = TransitionDurations[TransitionBox.SelectedIndex];
+        TransitionBox.IsEnabled = _state.Settings.TransitionEnabled;
+        _state.SaveSettings();
+    }
 
     private void AutoRotate_Click(object sender, RoutedEventArgs e)
     {
