@@ -559,6 +559,31 @@ var tests = new List<(string Name, Action Body)>
         True(e.ScreensaverActive, "Vorschau startet nicht");
     }),
 
+    ("Abfrageintervall: Verlauf und Glättung rechnen in Sekunden", () =>
+    {
+        var h = new SensorHistory { IntervalMs = 250 };
+        Eq(4, h.SamplesFor(1));
+        Eq(240, h.SamplesFor(60));
+        Eq(2400, h.Capacity);                                  // weiterhin 10 Minuten
+        for (int i = 0; i < 8; i++) h.Record("/s", i < 4 ? 0 : 100);
+        Eq(100.0, h.Smoothed("/s", SmoothingMode.Average, 1));  // letzte Sekunde = letzte 4 Werte
+        Eq(50.0, h.Smoothed("/s", SmoothingMode.Average, 2));
+        h.IntervalMs = 500;
+        Eq(0, h.Last("/s", 10).Length);                         // Umstellen beginnt neu
+
+        // Engine reicht gebrauchte Sensoren inkl. Eingängen eigener Sensoren an die Quellen weiter
+        var src = new WantedSpy();
+        var hub = new SensorHub(src);
+        hub.SetCustomSensors(new[] { new CustomSensor { Key = "sum", Formula = "[/a/0/x] + [/b/0/y]" } });
+        var e = new AppletEngine(hub, PixelTextRasterizer.Instance, () => null, () => false,
+            new AppSettings { BootAnimation = false, SensorIntervalMs = 500 }) { ConnectGrace = TimeSpan.Zero };
+        e.SetApplets(new[] { new Applet { Widgets = { new SensorWidget { Sensor = "custom:sum" } } } });
+        Eq(500, e.History.IntervalMs);
+        e.Tick(DateTime.UtcNow);
+        True(src.Wanted.Contains("/a/0/x") && src.Wanted.Contains("/b/0/y") && src.Wanted.Contains("custom:sum"),
+            "Eingänge des eigenen Sensors fehlen: " + string.Join(", ", src.Wanted));
+    }),
+
     ("Grundformen: Linie, Rechteck, Oval zeichnen und speichern", () =>
     {
         var applet = new Applet { Widgets = {
@@ -831,4 +856,11 @@ static class ImageCompare
                 if (a[x, y] != b[x, y]) return false;
         return true;
     }
+}
+
+sealed class WantedSpy : SensorSourceBase, IWantedSensors
+{
+    public IReadOnlyCollection<string> Wanted { get; private set; } = Array.Empty<string>();
+    public void SetWanted(IReadOnlyCollection<string> ids) => Wanted = ids;
+    protected override IReadOnlyList<SensorInfo> ReadSensors() => Array.Empty<SensorInfo>();
 }

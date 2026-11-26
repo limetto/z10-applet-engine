@@ -15,7 +15,7 @@ public sealed class CustomSensor
 /// <summary>
 /// Fasst mehrere Sensorquellen (LibreHardwareMonitor, RTSS, …) zusammen und berechnet eigene Sensoren.
 /// </summary>
-public sealed class SensorHub : SensorSourceBase
+public sealed class SensorHub : SensorSourceBase, IWantedSensors
 {
     public const string CustomPrefix = "custom:";
 
@@ -37,6 +37,24 @@ public sealed class SensorHub : SensorSourceBase
             list.Add((c, f, err));
         }
         lock (_customLock) _custom = list;
+    }
+
+    /// <summary>Gebrauchte Sensoren inkl. der Eingänge eigener Sensoren an die Quellen weiterreichen.</summary>
+    public void SetWanted(IReadOnlyCollection<string> ids)
+    {
+        List<(CustomSensor Def, Formula? Formula, string? Error)> custom;
+        lock (_customLock) custom = _custom;
+        var byId = custom.ToDictionary(c => c.Def.Id, c => c.Formula, StringComparer.OrdinalIgnoreCase);
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var stack = new Stack<string>(ids);
+        while (stack.Count > 0)
+        {
+            var id = stack.Pop();
+            if (!result.Add(id)) continue;
+            if (byId.TryGetValue(id, out var f) && f is not null)
+                foreach (var r in f.SensorRefs) stack.Push(r);
+        }
+        foreach (var src in _sources.OfType<IWantedSensors>()) src.SetWanted(result);
     }
 
     public IReadOnlyDictionary<string, string> CustomErrors

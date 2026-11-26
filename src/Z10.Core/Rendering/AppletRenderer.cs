@@ -162,14 +162,17 @@ public sealed class AppletRenderer
         int innerW = g.W - 2 * inset, innerH = g.H - 2 * inset;
         if (innerW <= 1 || innerH <= 1) return;
 
-        var values = _history.Last(g.Sensor, Math.Max(2, g.Seconds));
-        if (g.Smoothing != SmoothingMode.None && g.SmoothingSeconds > 1)
+        // Zeiten in Messungen umrechnen (Abfrageintervall ist einstellbar)
+        int count = Math.Max(2, _history.SamplesFor(g.Seconds));
+        int smooth = _history.SamplesFor(g.SmoothingSeconds);
+        var values = _history.Last(g.Sensor, count);
+        if (g.Smoothing != SmoothingMode.None && g.SmoothingSeconds > 1 && smooth > 1)
         {
-            var raw = _history.Last(g.Sensor, Math.Max(2, g.Seconds) + g.SmoothingSeconds - 1);
+            var raw = _history.Last(g.Sensor, count + smooth - 1);
             int offset = raw.Length - values.Length;
             values = values.Select((_, i) =>
             {
-                var window = raw.Skip(Math.Max(0, offset + i - g.SmoothingSeconds + 1)).Take(Math.Min(g.SmoothingSeconds, offset + i + 1))
+                var window = raw.Skip(Math.Max(0, offset + i - smooth + 1)).Take(Math.Min(smooth, offset + i + 1))
                                 .Where(v => v.HasValue).Select(v => v!.Value).ToArray();
                 return raw[offset + i] is null || window.Length == 0 ? (double?)null : SensorHistory.Smooth(window, g.Smoothing);
             }).ToArray();
@@ -191,7 +194,7 @@ public sealed class AppletRenderer
         {
             if (values[i] is not double v) { prevX = -1; continue; }
             // neuester Wert rechts
-            int x = g.X + inset + innerW - 1 - (int)Math.Round((n - 1 - i) * (innerW - 1) / (double)Math.Max(1, g.Seconds - 1));
+            int x = g.X + inset + innerW - 1 - (int)Math.Round((n - 1 - i) * (innerW - 1) / (double)Math.Max(1, count - 1));
             if (x < g.X + inset) continue;
             double frac = Math.Clamp((v - min) / (max - min), 0, 1);
             int y = baseY - (minH + (int)Math.Round(frac * span));

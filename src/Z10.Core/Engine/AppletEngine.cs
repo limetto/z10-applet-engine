@@ -162,6 +162,7 @@ public sealed class AppletEngine : IDisposable
         _conflictCheck = conflictCheck;
         _settings = settings;
         _renderer = new AppletRenderer(text, sensors, _history);
+        _history.IntervalMs = (int)SensorInterval.TotalMilliseconds;
     }
 
     public bool Paused
@@ -189,6 +190,7 @@ public sealed class AppletEngine : IDisposable
         lock (_lock)
         {
             _settings = settings;
+            _history.IntervalMs = (int)SensorInterval.TotalMilliseconds;
             _backlightDirty = true;
             if (_display is not null) _display.Device.PageDelay = TimeSpan.FromMilliseconds(Math.Max(10, settings.PageDelayMs));
         }
@@ -551,10 +553,13 @@ public sealed class AppletEngine : IDisposable
         }
     }
 
+    /// <summary>Abfrageintervall der Sensoren (aus den Einstellungen, 100 ms … 10 s).</summary>
+    public TimeSpan SensorInterval => TimeSpan.FromMilliseconds(Math.Clamp(_settings.SensorIntervalMs, 100, 10_000));
+
     private void HandleSensors(DateTime now)
     {
         if (now < _nextSensorUpdate) return;
-        _nextSensorUpdate = now.AddSeconds(1);
+        _nextSensorUpdate = now + SensorInterval;
         UpdateSensors();
     }
 
@@ -565,21 +570,23 @@ public sealed class AppletEngine : IDisposable
             var start = DateTime.UtcNow;
             try { UpdateSensors(); }
             catch (Exception) { /* Fehler stehen in _sensors.Error */ }
-            var wait = TimeSpan.FromSeconds(1) - (DateTime.UtcNow - start);
-            Thread.Sleep(wait > TimeSpan.FromMilliseconds(50) ? wait : TimeSpan.FromMilliseconds(50));
+            var wait = SensorInterval - (DateTime.UtcNow - start);
+            Thread.Sleep(wait > TimeSpan.FromMilliseconds(20) ? wait : TimeSpan.FromMilliseconds(20));
         }
     }
 
     private void UpdateSensors()
     {
-        _sensors.Update();
-        // Verlauf für alle verwendeten Sensoren aufzeichnen (Verlaufs-Bausteine und Glättung)
         List<string> used;
         lock (_lock)
         {
             used = _applets.Append(_previewOverride).Where(a => a is not null)
                 .SelectMany(a => a!.SensorIds).Concat(_extraSensors).Distinct().ToList();
         }
+        // Quellen dürfen sich auf die gebrauchten Sensoren beschränken, der Rest wird seltener aufgefrischt
+        (_sensors as IWantedSensors)?.SetWanted(used);
+        _sensors.Update();
+        // Verlauf für alle verwendeten Sensoren aufzeichnen (Verlaufs-Bausteine und Glättung)
         foreach (var id in used) _history.Record(id, _sensors.GetValue(id));
     }
 

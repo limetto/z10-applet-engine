@@ -10,9 +10,18 @@ public sealed record SensorInfo(
     string Unit,
     double? Value);
 
+/// <summary>
+/// Quelle, die nur die gerade gebrauchten Sensoren häufig abfragen kann (der Rest seltener).
+/// Ids können auch Auto-Abfragen ("auto:cpu/…") sein.
+/// </summary>
+public interface IWantedSensors
+{
+    void SetWanted(IReadOnlyCollection<string> ids);
+}
+
 public interface ISensorSource : IDisposable
 {
-    /// <summary>Liest alle Sensoren neu ein (teuer, max. etwa 1× pro Sekunde aufrufen).</summary>
+    /// <summary>Liest die Sensoren neu ein (teuer, im eingestellten Abfrageintervall aufrufen).</summary>
     void Update();
 
     IReadOnlyList<SensorInfo> Sensors { get; }
@@ -154,14 +163,40 @@ public static class AutoQuery
     }
 }
 
-/// <summary>Werteverlauf je Sensor für Verlaufs-Bausteine.</summary>
+/// <summary>Werteverlauf je Sensor für Verlaufs-Bausteine. Ein Wert pro Abfrageintervall.</summary>
 public sealed class SensorHistory
 {
     private readonly Dictionary<string, Queue<double?>> _data = new();
     private readonly object _lock = new();
-    public int Capacity { get; }
+    private int _intervalMs = 1000;
+
+    /// <summary>Höchstzahl Werte je Sensor (Standard: 10 Minuten).</summary>
+    public int Capacity { get; private set; }
 
     public SensorHistory(int capacity = 600) => Capacity = capacity;
+
+    /// <summary>
+    /// Abstand der Messungen. Beim Ändern wird der Verlauf gelöscht (alte Werte hätten einen anderen Zeitmaßstab)
+    /// und die Kapazität so angepasst, dass weiterhin 10 Minuten hineinpassen.
+    /// </summary>
+    public int IntervalMs
+    {
+        get => _intervalMs;
+        set
+        {
+            value = Math.Clamp(value, 50, 60_000);
+            lock (_lock)
+            {
+                if (value == _intervalMs) return;
+                _intervalMs = value;
+                Capacity = Math.Max(60, 600_000 / value);
+                _data.Clear();
+            }
+        }
+    }
+
+    /// <summary>Anzahl Messungen, die einer Zeitspanne entspricht.</summary>
+    public int SamplesFor(double seconds) => Math.Max(1, (int)Math.Round(seconds * 1000 / _intervalMs));
 
     public void Record(string id, double? value)
     {
@@ -173,10 +208,10 @@ public sealed class SensorHistory
         }
     }
 
-    /// <summary>Geglätteter Wert über die letzten <paramref name="samples"/> Messungen; null ohne Daten.</summary>
-    public double? Smoothed(string id, Model.SmoothingMode mode, int samples)
+    /// <summary>Geglätteter Wert über die letzten <paramref name="seconds"/> Sekunden; null ohne Daten.</summary>
+    public double? Smoothed(string id, Model.SmoothingMode mode, int seconds)
     {
-        var vals = Last(id, Math.Max(1, samples)).Where(v => v.HasValue).Select(v => v!.Value).ToArray();
+        var vals = Last(id, SamplesFor(seconds)).Where(v => v.HasValue).Select(v => v!.Value).ToArray();
         if (vals.Length == 0) return null;
         return Smooth(vals, mode);
     }

@@ -41,6 +41,9 @@ public partial class DeviceView : UserControl
         DelayBox.SelectedIndex = Math.Max(0, Array.IndexOf(Delays, s.PageDelayMs));
         ReleaseOnExitBox.IsChecked = s.ReleaseOnExit;
         BootBox.IsChecked = s.BootAnimation;
+        foreach (var ms in SensorIntervals) SensorIntervalBox.Items.Add(ms < 1000 ? $"{ms / 1000.0:0.##} Sekunden" : ms == 1000 ? "1 Sekunde (Standard)" : $"{ms / 1000} Sekunden");
+        int si = Array.IndexOf(SensorIntervals, s.SensorIntervalMs);
+        SensorIntervalBox.SelectedIndex = si < 0 ? Array.IndexOf(SensorIntervals, 1000) : si;
         foreach (var m in SaverMinutes) SaverMinutesBox.Items.Add(m == 1 ? "1 Minute" : $"{m} Minuten");
         foreach (var k in Enum.GetValues<ScreensaverKind>()) SaverKindBox.Items.Add(Screensavers.DisplayName(k));
         SaverBox.IsChecked = s.ScreensaverEnabled;
@@ -139,6 +142,15 @@ public partial class DeviceView : UserControl
     {
         if (_loading || DelayBox.SelectedIndex < 0) return;
         _state.Settings.PageDelayMs = Delays[DelayBox.SelectedIndex];
+        _state.SaveSettings();
+    }
+
+    private static readonly int[] SensorIntervals = { 250, 500, 1000, 2000 };
+
+    private void SensorInterval_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || SensorIntervalBox.SelectedIndex < 0) return;
+        _state.Settings.SensorIntervalMs = SensorIntervals[SensorIntervalBox.SelectedIndex];
         _state.SaveSettings();
     }
 

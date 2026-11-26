@@ -6,9 +6,16 @@ using Z10.Core.Sensors;
 namespace Z10.App;
 
 /// <summary>Sensoren über LibreHardwareMonitorLib (benötigt Adminrechte für vollständige Werte).</summary>
-public sealed class LhmSensorSource : SensorSourceBase
+public sealed class LhmSensorSource : SensorSourceBase, IWantedSensors
 {
     private Computer? _computer;
+    private volatile IReadOnlyCollection<string>? _wanted;
+    private DateTime _nextFull = DateTime.MinValue;
+
+    /// <summary>So oft wird auch Hardware abgefragt, deren Sensoren gerade kein Applet braucht (für Listen und Editor).</summary>
+    public static TimeSpan FullInterval { get; set; } = TimeSpan.FromSeconds(5);
+
+    public void SetWanted(IReadOnlyCollection<string> ids) => _wanted = ids;
 
     protected override IReadOnlyList<SensorInfo> ReadSensors()
     {
@@ -27,15 +34,33 @@ public sealed class LhmSensorSource : SensorSourceBase
             _computer.Open();
         }
 
+        var now = DateTime.UtcNow;
+        bool full = now >= _nextFull || _wanted is null;
+        if (full) _nextFull = now + FullInterval;
+        var wanted = _wanted ?? Array.Empty<string>();
+        // Auto-Abfragen ("auto:cpu/…") brauchen alle Hardware dieser Art
+        var autoKinds = wanted.Where(id => id.StartsWith(AutoQuery.Prefix, StringComparison.OrdinalIgnoreCase))
+            .Select(id => id[AutoQuery.Prefix.Length..].Split('/')[0].ToLowerInvariant()).ToHashSet();
+        var plain = wanted.Where(id => id.StartsWith('/')).ToList();
+
+        bool Wanted(IHardware hw, string kind)
+        {
+            if (full || autoKinds.Contains(kind)) return true;
+            var prefix = hw.Identifier + "/";
+            if (plain.Any(id => id.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))) return true;
+            return hw.SubHardware.Any(sub => Wanted(sub, kind == "other" ? Kind(sub.HardwareType.ToString()) : kind));
+        }
+
         var list = new List<SensorInfo>();
         foreach (var hw in _computer.Hardware)
-            Collect(hw, Kind(hw.HardwareType.ToString()), list);
+            Collect(hw, Kind(hw.HardwareType.ToString()), list, Wanted);
         return list;
     }
 
-    private static void Collect(IHardware hw, string kind, List<SensorInfo> list)
+    private static void Collect(IHardware hw, string kind, List<SensorInfo> list, Func<IHardware, string, bool> update)
     {
-        hw.Update();
+        // Nicht gebrauchte Hardware behält ihre letzten Werte bis zur nächsten vollständigen Abfrage
+        if (update(hw, kind)) hw.Update();
         foreach (var s in hw.Sensors)
         {
             var type = s.SensorType.ToString();
@@ -46,7 +71,7 @@ public sealed class LhmSensorSource : SensorSourceBase
         {
             // Unter-Hardware (z. B. Super-I/O-Chip des Mainboards) erbt die Art des Elternteils.
             var subKind = kind == "other" ? Kind(sub.HardwareType.ToString()) : kind;
-            Collect(sub, subKind, list);
+            Collect(sub, subKind, list, update);
         }
     }
 

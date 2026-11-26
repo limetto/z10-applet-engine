@@ -12,6 +12,7 @@ Die Applets setzt du im Layout-Editor aus Bausteinen zusammen. Die Werte kommen 
 ## Funktionen
 
 - **Applet-Rotation** mit eigener Anzeigedauer und Aktualisierung pro Applet; Rotation anhalten, vor und zurück blättern
+- **Abfrageintervall** der Sensoren einstellbar (0,25–2 s); häufig abgefragt wird nur die Hardware, die gerade gebraucht wird
 - **Grundformen** im Editor: Linie (mit Stärke), Rechteck (leer/gefüllt, runde Ecken) und Oval/Kreis
 - **Bildschirmschoner** nach einstellbarer Zeit ohne Tastendruck: Logo, Sternenflug oder Matrix
 - **Verschiebeanimation** beim Applet-Wechsel (zuschaltbar, Dauer einstellbar)

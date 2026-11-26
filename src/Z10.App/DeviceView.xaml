@@ -48,6 +48,10 @@
           <TextBlock Text="Verhalten" Style="{StaticResource H2}" Margin="0,20,0,4"/>
           <TextBlock Text="Pause zwischen Display-Seiten" Style="{StaticResource Label}"/>
           <ComboBox x:Name="DelayBox" SelectionChanged="Delay_Changed"/>
+          <TextBlock Text="Sensoren abfragen alle" Style="{StaticResource Label}"/>
+          <ComboBox x:Name="SensorIntervalBox" SelectionChanged="SensorInterval_Changed"/>
+          <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0" TextWrapping="Wrap"
+                     Text="Häufiger abgefragt wird nur die Hardware, deren Sensoren gerade ein Applet braucht; alles andere alle 5 Sekunden. Manche Werte (z. B. Mainboard-Temperaturen) ändern sich in der Hardware selbst nur etwa jede Sekunde. Verläufe werden beim Umstellen neu begonnen."/>
           <CheckBox x:Name="ReleaseOnExitBox" Content="Beim Beenden Display an die Tastatur zurückgeben" Click="Behavior_Click" Margin="0,12,0,4"/>
           <CheckBox x:Name="BootBox" Content="Startanimation (auf der Tastatur und im Startfenster)" Click="Behavior_Click"/>
           <CheckBox x:Name="AutoStartBox" Content="Mit Windows starten (über die Aufgabenplanung, ohne UAC-Abfrage)" Click="AutoStart_Click"/>
