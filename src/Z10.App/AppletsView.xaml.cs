@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using Z10.Core.Model;
 using Z10.Core.Rendering;
@@ -18,6 +19,8 @@ public partial class AppletsView : UserControl
     private readonly AppState _state;
     private readonly WriteableBitmap _bitmap = LcdImage.Create();
     private bool _loading;
+    private bool _dirty;
+    private Applet? _shown;     // Applet, dessen Einstellungen gerade im Formular stehen
 
     public event Action<Applet>? EditRequested;
 
@@ -34,7 +37,7 @@ public partial class AppletsView : UserControl
         _state.Engine.FrameRendered += OnFrame;
         LcdImage.ColorChanged += () => Dispatcher.BeginInvoke(() => { if (_lastFrame is not null) LcdImage.Update(_bitmap, _lastFrame); });
         if (List.Items.Count > 0) List.SelectedIndex = 0;
-        UpdatePauseButton();
+        UpdateAutoRotate();
     }
 
     private Framebuffer? _lastFrame;
@@ -48,13 +51,17 @@ public partial class AppletsView : UserControl
         {
             _lastFrame = copy;
             LcdImage.Update(_bitmap, copy);
+            if (AutoRotateBox.IsChecked != !_state.Engine.Paused) UpdateAutoRotate();   // z. B. per E-Taste umgeschaltet
             PreviewTitle.Text = "Auf der Tastatur: " + applet.Name;
         });
     }
 
     private void List_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        // Beim Wechsel zu einem anderen Applet nichts verlieren
+        if (_dirty && _shown is not null && !ReferenceEquals(_shown, Selected)) SaveSettingsOf(_shown);
         var a = Selected;
+        _shown = a;
         SettingsCard.IsEnabled = a is not null;
         if (a is null) return;
         _loading = true;
@@ -67,18 +74,52 @@ public partial class AppletsView : UserControl
         var ids = a.SensorIds.ToList();
         SensorList.Text = ids.Count == 0 ? "keine" : string.Join(Environment.NewLine, ids);
         _loading = false;
+        SetDirty(false);
         if (a.Enabled) _state.Engine.Show(a.Id);
     }
 
     private void Settings_Changed(object sender, RoutedEventArgs e)
     {
-        if (_loading || Selected is not Applet a) return;
+        if (_loading || _shown is null) return;
+        SetDirty(true);
+    }
+
+    private void SetDirty(bool dirty)
+    {
+        _dirty = dirty;
+        SaveButton.IsEnabled = RevertButton.IsEnabled = dirty;
+        DirtyText.Visibility = dirty ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void SaveSettingsOf(Applet a)
+    {
         a.Name = string.IsNullOrWhiteSpace(NameBox.Text) ? a.Name : NameBox.Text.Trim();
         if (DurationBox.SelectedIndex >= 0) a.DurationSeconds = Durations[DurationBox.SelectedIndex].Seconds;
         if (RefreshBox.SelectedIndex >= 0) a.RefreshMs = Refreshes[RefreshBox.SelectedIndex].Ms;
         a.ShowOnWarning = WarnBox.IsChecked == true;
-        SettingsTitle.Text = "Einstellungen: " + a.Name;
+        SetDirty(false);
         _state.SaveApplet(a);
+    }
+
+    private void Save_Click(object sender, RoutedEventArgs e)
+    {
+        if (_shown is null) return;
+        var a = _shown;
+        SaveSettingsOf(a);
+        SettingsTitle.Text = "Einstellungen: " + a.Name;
+        List.Items.Refresh();
+        List.SelectedItem = a;
+    }
+
+    private void Revert_Click(object sender, RoutedEventArgs e)
+    {
+        SetDirty(false);
+        List_SelectionChanged(this, null!);
+    }
+
+    private void NameBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter && _dirty) Save_Click(sender, e);
     }
 
     private void Enabled_Click(object sender, RoutedEventArgs e)
@@ -123,18 +164,25 @@ public partial class AppletsView : UserControl
     private void Prev_Click(object sender, RoutedEventArgs e) => _state.Engine.Previous();
     private void Next_Click(object sender, RoutedEventArgs e) => _state.Engine.Next();
 
-    private void Pause_Click(object sender, RoutedEventArgs e)
+    private void AutoRotate_Click(object sender, RoutedEventArgs e)
     {
-        _state.Engine.Paused = !_state.Engine.Paused;
+        _state.Engine.Paused = AutoRotateBox.IsChecked != true;
         _state.SaveSettings();
-        UpdatePauseButton();
+        UpdateAutoRotate();
     }
 
-    private void UpdatePauseButton() =>
-        PauseButton.Content = _state.Engine.Paused ? "Rotation fortsetzen" : "Rotation anhalten";
+    private void UpdateAutoRotate()
+    {
+        AutoRotateBox.IsChecked = !_state.Engine.Paused;
+        AutoRotateHint.Text = _state.Engine.Paused
+            ? "Aus: Applets wechseln nur manuell über ◀ ▶ oder die Tasten E6/E7."
+            : "Aktive Applets wechseln nach ihrer Anzeigedauer. Ein Applet mit Anzeigedauer „nur manuell“ bleibt stehen, bis du weiterschaltest.";
+    }
 
     private void Edit_Click(object sender, RoutedEventArgs e)
     {
-        if (Selected is Applet a) EditRequested?.Invoke(a);
+        if (Selected is not Applet a) return;
+        if (_dirty) SaveSettingsOf(a);
+        EditRequested?.Invoke(a);
     }
 }

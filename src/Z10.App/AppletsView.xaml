@@ -15,8 +15,11 @@
           <Button DockPanel.Dock="Right" Style="{StaticResource AccentButton}" Content="+ Applet" Click="Add_Click"/>
           <TextBlock Text="Applet-Rotation" Style="{StaticResource H2}" VerticalAlignment="Center" Margin="0"/>
         </DockPanel>
-        <TextBlock DockPanel.Dock="Top" Style="{StaticResource Hint}" Margin="0,0,0,12"
-                   Text="Aktive Applets wechseln automatisch. Klick zeigt ein Applet sofort auf der Tastatur."/>
+        <TextBlock DockPanel.Dock="Top" Style="{StaticResource Hint}" Margin="0,0,0,8"
+                   Text="Klick zeigt ein Applet sofort auf der Tastatur."/>
+        <CheckBox x:Name="AutoRotateBox" DockPanel.Dock="Top" Margin="0,0,0,4" Click="AutoRotate_Click"
+                  Content="Automatisch durchwechseln"/>
+        <TextBlock x:Name="AutoRotateHint" DockPanel.Dock="Top" Style="{StaticResource Hint}" Margin="22,0,0,12" TextWrapping="Wrap"/>
         <WrapPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
           <Button Content="▲" ToolTip="Nach oben" Click="Up_Click" Margin="0,0,6,6" MinWidth="40"/>
           <Button Content="▼" ToolTip="Nach unten" Click="Down_Click" Margin="0,0,6,6" MinWidth="40"/>
@@ -33,6 +36,28 @@
                   <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
                   <TextBlock Foreground="{StaticResource MutedBrush}" FontSize="12">
                     <Run Text="{Binding Widgets.Count, Mode=OneWay}"/><Run Text=" Bausteine · "/><Run Text="{Binding DurationSeconds, Mode=OneWay}"/><Run Text=" s"/>
+                    <TextBlock.Style>
+                      <Style TargetType="TextBlock">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding DurationSeconds}" Value="0">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </TextBlock.Style>
+                  </TextBlock>
+                  <TextBlock Foreground="{StaticResource MutedBrush}" FontSize="12">
+                    <Run Text="{Binding Widgets.Count, Mode=OneWay}"/><Run Text=" Bausteine · nur manuell"/>
+                    <TextBlock.Style>
+                      <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding DurationSeconds}" Value="0">
+                            <Setter Property="Visibility" Value="Visible"/>
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </TextBlock.Style>
                   </TextBlock>
                 </StackPanel>
               </DockPanel>
@@ -57,7 +82,6 @@
             <WrapPanel Margin="0,12,0,0">
               <Button Content="◀" ToolTip="Vorheriges Applet" Click="Prev_Click" Margin="0,0,6,0" MinWidth="44"/>
               <Button Content="▶" ToolTip="Nächstes Applet" Click="Next_Click" Margin="0,0,6,0" MinWidth="44"/>
-              <Button x:Name="PauseButton" Content="Rotation anhalten" Click="Pause_Click" Margin="0,0,6,0"/>
               <Button Style="{StaticResource AccentButton}" Content="Layout bearbeiten" Click="Edit_Click"/>
             </WrapPanel>
           </StackPanel>
@@ -65,7 +89,14 @@
 
         <Border Style="{StaticResource Card}" Margin="0,20,0,0" x:Name="SettingsCard">
           <StackPanel>
-            <TextBlock x:Name="SettingsTitle" Style="{StaticResource H2}" Text="Einstellungen"/>
+            <DockPanel Margin="0,0,0,10">
+              <Button x:Name="SaveButton" DockPanel.Dock="Right" Style="{StaticResource AccentButton}" Content="Speichern"
+                      Click="Save_Click" IsEnabled="False" Margin="8,0,0,0"/>
+              <Button x:Name="RevertButton" DockPanel.Dock="Right" Content="Verwerfen" Click="Revert_Click" IsEnabled="False"/>
+              <TextBlock x:Name="DirtyText" DockPanel.Dock="Right" Foreground="{StaticResource WarnBrush}" VerticalAlignment="Center"
+                         Margin="0,0,12,0" Text="ungespeicherte Änderungen" Visibility="Collapsed"/>
+              <TextBlock x:Name="SettingsTitle" Style="{StaticResource H2}" Text="Einstellungen" Margin="0" VerticalAlignment="Center"/>
+            </DockPanel>
             <Grid>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -74,8 +105,8 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <TextBlock Style="{StaticResource Label}" Text="Name"/>
-                <TextBox x:Name="NameBox" LostFocus="Settings_Changed"/>
-                <TextBlock Style="{StaticResource Label}" Text="Anzeigedauer"/>
+                <TextBox x:Name="NameBox" TextChanged="Settings_Changed" KeyDown="NameBox_KeyDown"/>
+                <TextBlock Style="{StaticResource Label}" Text="Anzeigedauer bei automatischem Wechsel"/>
                 <ComboBox x:Name="DurationBox" SelectionChanged="Settings_Changed"/>
               </StackPanel>
               <StackPanel Grid.Column="2">
