@@ -165,7 +165,7 @@ var tests = new List<(string Name, Action Body)>
     {
         var dev = new FakeDevice();
         bool conflict = false;
-        var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => dev, () => conflict, new AppSettings());
+        var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => dev, () => conflict, new AppSettings()) { ConnectGrace = TimeSpan.Zero };
         var apps = DefaultApplets.Create();
         e.SetApplets(apps);
         var t = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -327,7 +327,7 @@ var tests = new List<(string Name, Action Body)>
     ("Engine sendet regelmäßig und nach InvalidateDisplay alle Seiten neu", () =>
     {
         var dev = new FakeDevice();
-        var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => dev, () => false, new AppSettings());
+        var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => dev, () => false, new AppSettings()) { ConnectGrace = TimeSpan.Zero };
         e.SetApplets(new[] { new Applet { Name = "Statisch", DurationSeconds = 0, Widgets = { new TextWidget { Text = "FEST", W = 60 } } } });
         var t = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         e.Tick(t);
@@ -376,7 +376,7 @@ var tests = new List<(string Name, Action Body)>
         True(frames[0].CountSet() < frames[^1].CountSet(), "Animation baut nicht auf");
 
         var dev = new FakeDevice();
-        var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => dev, () => false, new AppSettings());
+        var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => dev, () => false, new AppSettings()) { ConnectGrace = TimeSpan.Zero };
         e.SetApplets(DefaultApplets.Create());
         var shown = new List<string>();
         e.FrameRendered += (_, a) => shown.Add(a.Name);
@@ -389,7 +389,7 @@ var tests = new List<(string Name, Action Body)>
 
         // Langsamer erster Takt (z. B. Treiberstart): Animation darf trotzdem nicht übersprungen werden
         var dev2 = new FakeDevice();
-        var e2 = new AppletEngine(new SlowSource(), PixelTextRasterizer.Instance, () => dev2, () => false, new AppSettings());
+        var e2 = new AppletEngine(new SlowSource(), PixelTextRasterizer.Instance, () => dev2, () => false, new AppSettings()) { ConnectGrace = TimeSpan.Zero };
         e2.SetApplets(DefaultApplets.Create());
         var shown2 = new List<string>();
         e2.FrameRendered += (_, a) => shown2.Add(a.Name);
@@ -465,7 +465,7 @@ var tests = new List<(string Name, Action Body)>
 
         var dev = new FakeDevice();
         var settings = new AppSettings();
-        var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => dev, () => false, settings);
+        var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => dev, () => false, settings) { ConnectGrace = TimeSpan.Zero };
         e.SetApplets(DefaultApplets.Create());
         var t = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         e.Tick(t);
@@ -485,6 +485,20 @@ var tests = new List<(string Name, Action Body)>
         True(e.Paused, "Tasten trotz Abschaltung ausgewertet");
     }),
 
+    ("Engine wartet nach dem Verbinden kurz, bevor sie sendet", () =>
+    {
+        var dev = new FakeDevice();
+        var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => dev, () => false,
+            new AppSettings { BootAnimation = false });
+        e.SetApplets(new[] { new Applet { Name = "A", Widgets = { new TextWidget { Text = "x", W = 20, H = 7 } } } });
+        var t0 = DateTime.UtcNow;
+        e.Tick(t0);
+        e.Tick(t0.AddMilliseconds(200));
+        Eq(0, dev.Reports.Count);
+        e.Tick(t0.AddMilliseconds(600));
+        True(dev.Pages.Count >= 4, "nach der Wartezeit nichts gesendet");
+    }),
+
     ("Übergang: Verschieben beim Applet-Wechsel", () =>
     {
         var from = new Framebuffer(); from.FillRect(0, 0, 10, 32);          // linker Balken
@@ -497,7 +511,7 @@ var tests = new List<(string Name, Action Body)>
 
         var frames = new List<Framebuffer>();
         var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => null, () => false,
-            new AppSettings { BootAnimation = false, TransitionEnabled = true, TransitionMs = 400 });
+            new AppSettings { BootAnimation = false, TransitionEnabled = true, TransitionMs = 400 }) { ConnectGrace = TimeSpan.Zero };
         var a1 = new Applet { Name = "A", Order = 0, Widgets = { new TextWidget { Text = "AAAA", X = 0, W = 40, H = 7 } } };
         var a2 = new Applet { Name = "B", Order = 1, Widgets = { new TextWidget { Text = "BBBB", X = 0, W = 40, H = 7 } } };
         e.SetApplets(new[] { a1, a2 });
@@ -515,7 +529,7 @@ var tests = new List<(string Name, Action Body)>
         True(!e.InTransition, "Übergang endet nicht");
 
         var plain = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => null, () => false,
-            new AppSettings { BootAnimation = false });
+            new AppSettings { BootAnimation = false }) { ConnectGrace = TimeSpan.Zero };
         plain.SetApplets(new[] { a1, a2 });
         plain.Tick(t0);
         plain.Next();
@@ -592,14 +606,14 @@ var tests = new List<(string Name, Action Body)>
 
     ("Engine: Gerätebefehl hält die Anzeige an und meldet Fehler ohne Tastatur", () =>
     {
-        var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => null, () => false, new AppSettings());
+        var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => null, () => false, new AppSettings()) { ConnectGrace = TimeSpan.Zero };
         e.Tick(DateTime.UtcNow);
         var t = e.RunDeviceJob(d => 1, "Test");
         True(t.IsFaulted && t.Exception!.InnerException is IOException, "Fehler ohne Tastatur erwartet");
 
         var dev = new FakeDevice();
         var e2 = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => dev, () => false,
-            new AppSettings { BootAnimation = false });
+            new AppSettings { BootAnimation = false }) { ConnectGrace = TimeSpan.Zero };
         e2.Tick(DateTime.UtcNow);
         dev.Reports.Clear();
         var r = e2.RunDeviceJob(d => { d.SendFeature(new byte[264]); return 42; }, "Beleuchtung wird\ngespeichert …");

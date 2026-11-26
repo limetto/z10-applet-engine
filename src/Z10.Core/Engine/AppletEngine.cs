@@ -39,6 +39,10 @@ public sealed class AppletEngine : IDisposable
     private bool _backlightDirty = true;
     private DateTime _nextFullRefresh;
     private DateTime _forceFullUntil;
+    private DateTime _deviceReadyAt;
+
+    /// <summary>Wartezeit nach dem Öffnen der Tastatur, bevor gesendet wird.</summary>
+    public TimeSpan ConnectGrace { get; set; } = TimeSpan.FromMilliseconds(500);
     private bool _bootPending;
     private IReadOnlyList<Framebuffer>? _bootFrames;
     private DateTime _bootStart;
@@ -385,6 +389,7 @@ public sealed class AppletEngine : IDisposable
             HandleDevice(utcNow);
             if (_sensorThread is null) HandleSensors(utcNow);   // ohne Start() (Tests): direkt im Takt
             HandleRotation(utcNow);
+            if (_display is not null && utcNow < _deviceReadyAt) return;   // Tastatur gerade erst geöffnet
             HandleRender(utcNow);
         }
     }
@@ -426,6 +431,9 @@ public sealed class AppletEngine : IDisposable
             dev.PageDelay = TimeSpan.FromMilliseconds(Math.Max(10, _settings.PageDelayMs));
             _display = new Z10Display(dev);
             _backlightDirty = true;
+            // Nach dem Öffnen (Programmstart, Aufwachen, Einstecken) der Tastatur kurz Zeit lassen,
+            // bevor die ersten Befehle kommen
+            _deviceReadyAt = now + ConnectGrace;
             _nextRender = DateTime.MinValue;
             DeviceInfo = dev.Description;
             _firstFrame = true;
@@ -439,6 +447,8 @@ public sealed class AppletEngine : IDisposable
                 _bootShown = -1;
             }
         }
+
+        if (_display is not null && now < _deviceReadyAt) return;
 
         if (_display is not null && _backlightDirty)
         {

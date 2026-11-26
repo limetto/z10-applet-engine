@@ -32,14 +32,18 @@ public sealed class Z10Display
     /// <summary>Erzwingt beim nächsten Show() das Senden aller Seiten.</summary>
     public void Invalidate() => _last = null;
 
+    /// <summary>Kleinste Pause zwischen zwei Seiten, die die Firmware sicher verkraftet (Benchmark: 10 ms).</summary>
+    public static readonly TimeSpan MinPageDelay = TimeSpan.FromMilliseconds(10);
+
     /// <summary>
-    /// Erstes Bild nach dem Verbinden: ohne Pause zwischen den Seiten senden, damit der alte Inhalt im
-    /// Speicher der Tastatur möglichst kurz sichtbar ist, danach normal (falls dabei Seiten verloren gingen).
+    /// Erstes Bild nach dem Verbinden: mit der kürzesten sicheren Pause senden, damit der alte Inhalt im
+    /// Speicher der Tastatur möglichst kurz sichtbar ist, danach noch einmal normal (falls Seiten verloren gingen).
+    /// Früher ganz ohne Pause – das hat die Firmware vermutlich gelegentlich zum Absturz gebracht.
     /// </summary>
     public void ShowFirst(Framebuffer fb)
     {
         var delay = _device.PageDelay;
-        _device.PageDelay = TimeSpan.Zero;
+        if (delay > MinPageDelay) _device.PageDelay = MinPageDelay;
         try { _last = null; Show(fb); }
         finally { _device.PageDelay = delay; }
         _last = null;
