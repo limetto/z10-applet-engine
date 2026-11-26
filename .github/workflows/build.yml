@@ -23,6 +23,9 @@ jobs:
       - name: Tests (Core)
         run: dotnet run --project tests/Z10.Core.Tests -c Release
 
+      - name: Verwendete Paketversionen
+        run: dotnet list src/Z10.App/Z10.App.csproj package --include-transitive
+
       - name: Publish (Einzeldatei, win-x64)
         run: >
           dotnet publish src/Z10.App/Z10.App.csproj -c Release -r win-x64 --self-contained true
