@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Windows;
+using static Z10.Core.Localization.Loc;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
@@ -25,6 +26,7 @@ public partial class SplashWindow : Window
     public SplashWindow()
     {
         InitializeComponent();
+        UiTranslator.Apply(this);
         Lcd.Source = _bitmap;
         var v = Assembly.GetExecutingAssembly().GetName().Version;
         Version.Text = v is null ? "" : $"Version {v.Major}.{v.Minor}.{v.Build}";
@@ -44,7 +46,7 @@ public partial class SplashWindow : Window
             return;
         }
         LcdImage.Update(_bitmap, _frames[idx]);
-        if (idx > _frames.Count / 2) Status.Text = "Sensoren werden gelesen …";
+        if (idx > _frames.Count / 2) Status.Text = L("Sensoren werden gelesen …");
     }
 
     private void Skip_Click(object sender, MouseButtonEventArgs e) => FadeOut();

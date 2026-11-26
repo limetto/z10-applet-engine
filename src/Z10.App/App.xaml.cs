@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Windows;
+using static Z10.Core.Localization.Loc;
 using Microsoft.Win32;
 using Forms = System.Windows.Forms;
 
@@ -16,6 +17,15 @@ public partial class App : Application
     private bool _exiting;
     private InputIdle? _idle;
 
+    /// <summary>Programm neu starten (z. B. nach einem Sprachwechsel).</summary>
+    public void Restart()
+    {
+        _restart = true;
+        ExitApp();
+    }
+
+    private bool _restart;
+
     public AppState State { get; private set; } = null!;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -24,10 +34,11 @@ public partial class App : Application
         DispatcherUnhandledException += (_, args) => { ReportCrash(args.Exception); args.Handled = true; Shutdown(1); };
         AppDomain.CurrentDomain.UnhandledException += (_, args) => ReportCrash(args.ExceptionObject as Exception);
 
+        Z10.Core.Localization.Loc.Use("auto");   // vorläufig, bis die Einstellungen geladen sind
         _singleInstance = new Mutex(true, "Z10AppletEngine.SingleInstance", out bool isNew);
         if (!isNew)
         {
-            MessageBox.Show("Die Z10 Applet Engine läuft bereits (Symbol im Infobereich).", "Z10 Applet Engine");
+            MessageBox.Show(L("Die Z10 Applet Engine läuft bereits (Symbol im Infobereich)."), "Z10 Applet Engine");
             Shutdown();
             return;
         }
@@ -79,7 +90,7 @@ public partial class App : Application
         catch (Exception) { }
         try
         {
-            MessageBox.Show($"Unerwarteter Fehler:\n\n{ex?.Message}\n\nDetails stehen in\n{path}", "Z10 Applet Engine",
+            MessageBox.Show(L("Unerwarteter Fehler:") + $"\n\n{ex?.Message}\n\n" + L("Details stehen in") + $"\n{path}", "Z10 Applet Engine",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
         catch (Exception) { }
@@ -109,18 +120,18 @@ public partial class App : Application
         _tray.DoubleClick += (_, _) => ShowWindow();
 
         var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add("Öffnen", null, (_, _) => ShowWindow());
-        menu.Items.Add("Nächstes Applet", null, (_, _) => State.Engine.Next());
-        _pauseItem = new Forms.ToolStripMenuItem("Rotation anhalten", null, (_, _) => TogglePause());
+        menu.Items.Add(L("Öffnen"), null, (_, _) => ShowWindow());
+        menu.Items.Add(L("Nächstes Applet"), null, (_, _) => State.Engine.Next());
+        _pauseItem = new Forms.ToolStripMenuItem(L("Rotation anhalten"), null, (_, _) => TogglePause());
         menu.Items.Add(_pauseItem);
-        var releaseItem = new Forms.ToolStripMenuItem("Display freigeben", null, (_, _) => State.Engine.SetSuspended(!State.Engine.Suspended));
+        var releaseItem = new Forms.ToolStripMenuItem(L("Display freigeben"), null, (_, _) => State.Engine.SetSuspended(!State.Engine.Suspended));
         menu.Items.Add(releaseItem);
         menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add("Beenden", null, (_, _) => ExitApp());
+        menu.Items.Add(L("Beenden"), null, (_, _) => ExitApp());
         menu.Opening += (_, _) =>
         {
-            _pauseItem.Text = State.Engine.Paused ? "Rotation fortsetzen" : "Rotation anhalten";
-            releaseItem.Text = State.Engine.Suspended ? "Display übernehmen" : "Display freigeben";
+            _pauseItem.Text = State.Engine.Paused ? L("Rotation fortsetzen") : L("Rotation anhalten");
+            releaseItem.Text = State.Engine.Suspended ? L("Display übernehmen") : L("Display freigeben");
         };
         _tray.ContextMenuStrip = menu;
     }
@@ -153,7 +164,14 @@ public partial class App : Application
             _tray.Dispose();
         }
         _window?.Close();
-        _singleInstance?.ReleaseMutex();
+        try { _singleInstance?.ReleaseMutex(); } catch (Exception) { }
+        _singleInstance?.Dispose();
+        _singleInstance = null;
+        if (_restart && Environment.ProcessPath is string exe)
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe) { UseShellExecute = true }); }
+            catch (Exception) { }
+        }
         Shutdown();
     }
 }

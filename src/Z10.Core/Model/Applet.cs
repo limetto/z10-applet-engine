@@ -1,3 +1,4 @@
+using static Z10.Core.Localization.Loc;
 using System.Text.Json.Serialization;
 using Z10.Core.Rendering;
 
@@ -101,7 +102,7 @@ public sealed class TextWidget : Widget
     public string Text { get; set; } = "Text";
     public TextStyle Style { get; set; } = new();
     public TextAlign Align { get; set; }
-    public override string KindName => "Text";
+    public override string KindName => L("Text");
 }
 
 public sealed class SensorWidget : SensorBoundWidget
@@ -112,7 +113,7 @@ public sealed class SensorWidget : SensorBoundWidget
 
     public TextStyle Style { get; set; } = new();
     public TextAlign Align { get; set; }
-    public override string KindName => "Sensorwert";
+    public override string KindName => L("Sensorwert");
 }
 
 public sealed class BarWidget : SensorBoundWidget
@@ -121,7 +122,7 @@ public sealed class BarWidget : SensorBoundWidget
     public double Max { get; set; } = 100;
     public bool Border { get; set; } = true;
     public bool Vertical { get; set; }
-    public override string KindName => "Balken";
+    public override string KindName => L("Balken");
 }
 
 public sealed class GraphWidget : SensorBoundWidget
@@ -136,7 +137,7 @@ public sealed class GraphWidget : SensorBoundWidget
 
     public bool Border { get; set; }
     public bool Filled { get; set; } = true;
-    public override string KindName => "Verlauf";
+    public override string KindName => L("Verlauf");
 }
 
 public sealed class ClockWidget : Widget
@@ -146,14 +147,14 @@ public sealed class ClockWidget : Widget
     public TextStyle Style { get; set; } = new();
     public TextAlign Align { get; set; }
     public bool UpperCase { get; set; }
-    public override string KindName => "Uhr / Datum";
+    public override string KindName => L("Uhr / Datum");
 }
 
 public sealed class IconWidget : Widget
 {
     /// <summary>Name eines eingebauten Symbols (cpu, gpu, ram, fan, temp, …) oder 8 Hex-Bytes.</summary>
     public string Icon { get; set; } = "cpu";
-    public override string KindName => "Symbol";
+    public override string KindName => L("Symbol");
 }
 
 public enum ShapeKind { Line, Rectangle, Ellipse }
@@ -183,8 +184,8 @@ public sealed class ShapeWidget : Widget
 
     public override string KindName => Shape switch
     {
-        ShapeKind.Line => "Linie",
-        ShapeKind.Ellipse => "Oval",
-        _ => "Rechteck",
+        ShapeKind.Line => L("Linie"),
+        ShapeKind.Ellipse => L("Oval"),
+        _ => L("Rechteck"),
     };
 }

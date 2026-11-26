@@ -30,6 +30,12 @@ public sealed class AppSettings
     /// <summary>Startanimation auf der Tastatur und im Startfenster.</summary>
     public bool BootAnimation { get; set; } = true;
 
+    /// <summary>Sprache der Oberfläche: "auto", "de", "en" oder Code einer Sprachdatei.</summary>
+    public string Language { get; set; } = "auto";
+
+    /// <summary>Tastaturlayout für die Beleuchtungsgrafik: "auto", "us", "de", "uk", "fr", "nordic".</summary>
+    public string KeyboardLayout { get; set; } = "auto";
+
     /// <summary>Abfrageintervall der Sensoren in ms (250, 500, 1000, 2000).</summary>
     public int SensorIntervalMs { get; set; } = 1000;
 

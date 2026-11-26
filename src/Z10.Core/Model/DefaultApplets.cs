@@ -1,3 +1,4 @@
+using static Z10.Core.Localization.Loc;
 using Z10.Core.Rendering;
 
 namespace Z10.Core.Model;
@@ -21,61 +22,61 @@ public static class DefaultApplets
     {
         new Applet
         {
-            Name = "CPU", Order = 0, DurationSeconds = 8, ShowOnWarning = true,
+            Name = L("CPU"), Order = 0, DurationSeconds = 8, ShowOnWarning = true,
             Widgets =
             {
-                new IconWidget { Name = "Symbol", X = 0, Y = 0, W = 8, H = 8, Icon = "cpu" },
-                new TextWidget { Name = "Titel", X = 11, Y = 1, W = 30, H = 7, Text = "CPU" },
-                new SensorWidget { Name = "Temperatur", X = 0, Y = 11, W = 76, H = 21, Sensor = CpuTemp, Format = "{value:0}°C", Style = Px(3),
+                new IconWidget { Name = L("Symbol"), X = 0, Y = 0, W = 8, H = 8, Icon = "cpu" },
+                new TextWidget { Name = L("Titel"), X = 11, Y = 1, W = 30, H = 7, Text = L("CPU") },
+                new SensorWidget { Name = L("Temperatur"), X = 0, Y = 11, W = 76, H = 21, Sensor = CpuTemp, Format = "{value:0}°C", Style = Px(3),
                                    Warn = new WarnRule { Above = 85, Blink = true } },
-                new SensorWidget { Name = "Last", X = 82, Y = 1, W = 78, H = 7, Sensor = CpuLoad, Format = "Last {value:0}%" },
-                new BarWidget { Name = "Last-Balken", X = 82, Y = 11, W = 78, H = 7, Sensor = CpuLoad },
-                new SensorWidget { Name = "Takt", X = 82, Y = 23, W = 78, H = 7, Sensor = CpuClock, Format = "{value/1000:0.0} GHz" },
+                new SensorWidget { Name = L("Last"), X = 82, Y = 1, W = 78, H = 7, Sensor = CpuLoad, Format = L("Last {value:0}%") },
+                new BarWidget { Name = L("Last-Balken"), X = 82, Y = 11, W = 78, H = 7, Sensor = CpuLoad },
+                new SensorWidget { Name = L("Takt"), X = 82, Y = 23, W = 78, H = 7, Sensor = CpuClock, Format = "{value/1000:0.0} GHz" },
             }
         },
         new Applet
         {
-            Name = "GPU", Order = 1, DurationSeconds = 8, ShowOnWarning = true,
+            Name = L("GPU"), Order = 1, DurationSeconds = 8, ShowOnWarning = true,
             Widgets =
             {
-                new IconWidget { Name = "Symbol", X = 0, Y = 0, W = 8, H = 8, Icon = "gpu" },
-                new TextWidget { Name = "Titel", X = 11, Y = 1, W = 30, H = 7, Text = "GPU" },
-                new SensorWidget { Name = "Temperatur", X = 0, Y = 11, W = 76, H = 21, Sensor = GpuTemp, Format = "{value:0}°C", Style = Px(3),
+                new IconWidget { Name = L("Symbol"), X = 0, Y = 0, W = 8, H = 8, Icon = "gpu" },
+                new TextWidget { Name = L("Titel"), X = 11, Y = 1, W = 30, H = 7, Text = L("GPU") },
+                new SensorWidget { Name = L("Temperatur"), X = 0, Y = 11, W = 76, H = 21, Sensor = GpuTemp, Format = "{value:0}°C", Style = Px(3),
                                    Warn = new WarnRule { Above = 85, Blink = true } },
-                new SensorWidget { Name = "Last", X = 82, Y = 1, W = 78, H = 7, Sensor = GpuLoad, Format = "Last {value:0}%" },
-                new BarWidget { Name = "Last-Balken", X = 82, Y = 11, W = 78, H = 7, Sensor = GpuLoad },
-                new SensorWidget { Name = "VRAM", X = 82, Y = 23, W = 78, H = 7, Sensor = GpuVram, Format = "VRAM {value/1024:0.0} GB" },
+                new SensorWidget { Name = L("Last"), X = 82, Y = 1, W = 78, H = 7, Sensor = GpuLoad, Format = L("Last {value:0}%") },
+                new BarWidget { Name = L("Last-Balken"), X = 82, Y = 11, W = 78, H = 7, Sensor = GpuLoad },
+                new SensorWidget { Name = L("VRAM"), X = 82, Y = 23, W = 78, H = 7, Sensor = GpuVram, Format = L("VRAM {value/1024:0.0} GB") },
             }
         },
         new Applet
         {
-            Name = "Uhr & Datum", Order = 2, DurationSeconds = 15, RefreshMs = 500,
+            Name = L("Uhr & Datum"), Order = 2, DurationSeconds = 15, RefreshMs = 500,
             Widgets =
             {
-                new ClockWidget { Name = "Uhrzeit", X = 0, Y = 1, W = 160, H = 21, Format = "HH:mm:ss", Style = Px(3), Align = TextAlign.Center },
-                new ClockWidget { Name = "Datum", X = 0, Y = 25, W = 160, H = 7, Format = "dddd, dd. MMMM yyyy", Align = TextAlign.Center },
+                new ClockWidget { Name = L("Uhrzeit"), X = 0, Y = 1, W = 160, H = 21, Format = "HH:mm:ss", Style = Px(3), Align = TextAlign.Center },
+                new ClockWidget { Name = L("Datum"), X = 0, Y = 25, W = 160, H = 7, Format = L("dddd, dd. MMMM yyyy"), Align = TextAlign.Center },
             }
         },
         new Applet
         {
-            Name = "Arbeitsspeicher", Order = 3, DurationSeconds = 5,
+            Name = L("Arbeitsspeicher"), Order = 3, DurationSeconds = 5,
             Widgets =
             {
-                new IconWidget { Name = "Symbol", X = 0, Y = 0, W = 8, H = 8, Icon = "ram" },
-                new SensorWidget { Name = "Belegt", X = 11, Y = 1, W = 149, H = 7, Sensor = RamUsed, Format = "RAM {value:0.0} GB belegt" },
-                new BarWidget { Name = "Auslastung", X = 0, Y = 12, W = 160, H = 9, Sensor = RamLoad,
+                new IconWidget { Name = L("Symbol"), X = 0, Y = 0, W = 8, H = 8, Icon = "ram" },
+                new SensorWidget { Name = L("Belegt"), X = 11, Y = 1, W = 149, H = 7, Sensor = RamUsed, Format = L("RAM {value:0.0} GB belegt") },
+                new BarWidget { Name = L("Auslastung"), X = 0, Y = 12, W = 160, H = 9, Sensor = RamLoad,
                                 Warn = new WarnRule { Above = 90 } },
-                new SensorWidget { Name = "Frei", X = 0, Y = 25, W = 160, H = 7, Sensor = RamFree, Format = "frei: {value:0.0} GB" },
+                new SensorWidget { Name = L("Frei"), X = 0, Y = 25, W = 160, H = 7, Sensor = RamFree, Format = L("frei: {value:0.0} GB") },
             }
         },
         new Applet
         {
-            Name = "CPU-Verlauf", Order = 4, DurationSeconds = 8, Enabled = false,
+            Name = L("CPU-Verlauf"), Order = 4, DurationSeconds = 8, Enabled = false,
             Widgets =
             {
-                new SensorWidget { Name = "Last", X = 0, Y = 0, W = 40, H = 7, Sensor = CpuLoad, Format = "{value:0}%" },
-                new TextWidget { Name = "Titel", X = 120, Y = 0, W = 40, H = 7, Text = "CPU 60s", Align = TextAlign.Right },
-                new GraphWidget { Name = "Verlauf", X = 0, Y = 9, W = 160, H = 23, Sensor = CpuLoad, Min = 0, Max = 100, Seconds = 60 },
+                new SensorWidget { Name = L("Last"), X = 0, Y = 0, W = 40, H = 7, Sensor = CpuLoad, Format = "{value:0}%" },
+                new TextWidget { Name = L("Titel"), X = 120, Y = 0, W = 40, H = 7, Text = L("CPU 60s"), Align = TextAlign.Right },
+                new GraphWidget { Name = L("Verlauf"), X = 0, Y = 9, W = 160, H = 23, Sensor = CpuLoad, Min = 0, Max = 100, Seconds = 60 },
             }
         },
     };

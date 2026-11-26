@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using Z10.Core.Model;
+using static Z10.Core.Localization.Loc;
 using Z10.Core.Rendering;
 
 namespace Z10.App;
@@ -12,7 +13,7 @@ namespace Z10.App;
 public partial class AppletsView : UserControl
 {
     private static readonly (string Label, int Seconds)[] Durations =
-        { ("3 Sekunden", 3), ("5 Sekunden", 5), ("8 Sekunden", 8), ("10 Sekunden", 10), ("15 Sekunden", 15), ("30 Sekunden", 30), ("60 Sekunden", 60), ("nur manuell", 0) };
+        { (L("{0} Sekunden", 3), 3), (L("{0} Sekunden", 5), 5), (L("{0} Sekunden", 8), 8), (L("{0} Sekunden", 10), 10), (L("{0} Sekunden", 15), 15), (L("{0} Sekunden", 30), 30), (L("{0} Sekunden", 60), 60), (L("nur manuell"), 0) };
     private static readonly (string Label, int Ms)[] Refreshes =
         { ("0,25 s", 250), ("0,5 s", 500), ("1 s", 1000), ("2 s", 2000), ("5 s", 5000) };
 
@@ -30,6 +31,7 @@ public partial class AppletsView : UserControl
     {
         _state = state;
         InitializeComponent();
+        UiTranslator.Apply(this);
         Preview.Source = _bitmap;
         foreach (var d in Durations) DurationBox.Items.Add(d.Label);
         foreach (var r in Refreshes) RefreshBox.Items.Add(r.Label);
@@ -61,7 +63,7 @@ public partial class AppletsView : UserControl
             _lastFrame = copy;
             LcdImage.Update(_bitmap, copy);
             if (AutoRotateBox.IsChecked != !_state.Engine.Paused) UpdateAutoRotate();   // z. B. per E-Taste umgeschaltet
-            PreviewTitle.Text = "Auf der Tastatur: " + applet.Name;
+            PreviewTitle.Text = L("Auf der Tastatur:") + " " + L(applet.Name);
         });
     }
 
@@ -74,14 +76,14 @@ public partial class AppletsView : UserControl
         SettingsCard.IsEnabled = a is not null;
         if (a is null) return;
         _loading = true;
-        SettingsTitle.Text = "Einstellungen: " + a.Name;
+        SettingsTitle.Text = L("Einstellungen:") + " " + a.Name;
         NameBox.Text = a.Name;
         DurationBox.SelectedIndex = Math.Max(0, Array.FindIndex(Durations, d => d.Seconds == a.DurationSeconds));
         int r = Array.FindIndex(Refreshes, x => x.Ms == a.RefreshMs);
         RefreshBox.SelectedIndex = r < 0 ? 2 : r;
         WarnBox.IsChecked = a.ShowOnWarning;
         var ids = a.SensorIds.ToList();
-        SensorList.Text = ids.Count == 0 ? "keine" : string.Join(Environment.NewLine, ids);
+        SensorList.Text = ids.Count == 0 ? L("keine") : string.Join(Environment.NewLine, ids);
         _loading = false;
         SetDirty(false);
         if (a.Enabled) _state.Engine.Show(a.Id);
@@ -115,7 +117,7 @@ public partial class AppletsView : UserControl
         if (_shown is null) return;
         var a = _shown;
         SaveSettingsOf(a);
-        SettingsTitle.Text = "Einstellungen: " + a.Name;
+        SettingsTitle.Text = L("Einstellungen:") + " " + a.Name;
         List.Items.Refresh();
         List.SelectedItem = a;
     }
@@ -142,7 +144,7 @@ public partial class AppletsView : UserControl
 
     private void Add_Click(object sender, RoutedEventArgs e)
     {
-        var a = _state.AddApplet("Neues Applet");
+        var a = _state.AddApplet(L("Neues Applet"));
         List.SelectedItem = a;
         EditRequested?.Invoke(a);
     }
@@ -155,7 +157,7 @@ public partial class AppletsView : UserControl
     private void Delete_Click(object sender, RoutedEventArgs e)
     {
         if (Selected is not Applet a) return;
-        if (MessageBox.Show($"Applet „{a.Name}“ löschen?", "Löschen", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+        if (MessageBox.Show(L("Applet „{0}“ löschen?", a.Name), L("Löschen"), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
             return;
         _state.Delete(a);
     }
@@ -193,8 +195,8 @@ public partial class AppletsView : UserControl
     {
         AutoRotateBox.IsChecked = !_state.Engine.Paused;
         AutoRotateHint.Text = _state.Engine.Paused
-            ? "Aus: Applets wechseln nur manuell über ◀ ▶ oder die Tasten E6/E7."
-            : "Aktive Applets wechseln nach ihrer Anzeigedauer. Ein Applet mit Anzeigedauer „nur manuell“ bleibt stehen, bis du weiterschaltest.";
+            ? L("Aus: Applets wechseln nur manuell über ◀ ▶ oder die Tasten E6/E7.")
+            : L("Aktive Applets wechseln nach ihrer Anzeigedauer. Ein Applet mit Anzeigedauer „nur manuell“ bleibt stehen, bis du weiterschaltest.");
     }
 
     private void Edit_Click(object sender, RoutedEventArgs e)

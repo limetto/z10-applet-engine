@@ -1,3 +1,4 @@
+using static Z10.Core.Localization.Loc;
 using System.Buffers.Binary;
 using System.Runtime.Versioning;
 using System.Text;
@@ -35,7 +36,7 @@ public sealed class RtssSensorSource : SensorSourceBase
         if (mem is not null) reading = RtssReader.Parse(mem, (uint)Environment.TickCount);
 
         ActiveApp = reading?.App;
-        string hw = !IsAvailable ? "RTSS (nicht gestartet)" : reading is null ? "RTSS (kein Spiel aktiv)" : $"RTSS · {reading.App}";
+        string hw = !IsAvailable ? L("RTSS (nicht gestartet)") : reading is null ? L("RTSS (kein Spiel aktiv)") : $"RTSS · {reading.App}";
         return new[]
         {
             new SensorInfo(FpsId, hw, "rtss", "Framerate", "Framerate", "FPS", reading?.Fps),

@@ -41,6 +41,25 @@
       </StackPanel>
 
       <StackPanel Grid.Column="2">
+        <Border Style="{StaticResource Card}" Margin="0,0,0,20">
+          <StackPanel>
+            <TextBlock Text="Sprache und Tastatur" Style="{StaticResource H2}"/>
+            <TextBlock Text="Sprache" Style="{StaticResource Label}"/>
+            <ComboBox x:Name="LanguageBox" SelectionChanged="Language_Changed"/>
+            <DockPanel x:Name="RestartPanel" Margin="0,6,0,0" Visibility="Collapsed">
+              <Button DockPanel.Dock="Right" Content="Jetzt neu starten" Click="Restart_Click" Margin="8,0,0,0"/>
+              <TextBlock Style="{StaticResource Hint}" VerticalAlignment="Center" TextWrapping="Wrap"
+                         Text="Die neue Sprache gilt nach einem Neustart."/>
+            </DockPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+              <Button Content="Vorlage für eine neue Sprache …" Click="LanguageTemplate_Click"/>
+            </StackPanel>
+            <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0" TextWrapping="Wrap"
+                       Text="Erstellt im Sprachordner eine Datei mit allen Texten. Übersetzen, als z. B. „fr.json“ speichern – danach steht die Sprache hier zur Auswahl."/>
+            <TextBlock Text="Tastaturlayout (für die Beleuchtungsgrafik)" Style="{StaticResource Label}"/>
+            <ComboBox x:Name="LayoutBox" SelectionChanged="Layout_Changed"/>
+          </StackPanel>
+        </Border>
         <Border Style="{StaticResource Card}">
           <StackPanel>
               <TextBlock Text="Bildschirmschoner" Style="{StaticResource H2}"/>

@@ -1,3 +1,4 @@
+using static Z10.Core.Localization.Loc;
 using System.Globalization;
 using System.Text;
 
@@ -136,10 +137,10 @@ public sealed class Formula
 
         public Node ParseAll()
         {
-            if (string.IsNullOrWhiteSpace(_s)) throw Error("Formel ist leer");
+            if (string.IsNullOrWhiteSpace(_s)) throw Error(L("Formel ist leer"));
             var n = Expr();
             Skip();
-            if (_i < _s.Length) throw Error($"Unerwartetes Zeichen „{_s[_i]}“");
+            if (_i < _s.Length) throw Error(L("Unerwartetes Zeichen „{0}“", _s[_i]));
             return n;
         }
 
@@ -184,7 +185,7 @@ public sealed class Formula
         private Node Primary()
         {
             Skip();
-            if (_i >= _s.Length) throw Error("Formel endet unerwartet");
+            if (_i >= _s.Length) throw Error(L("Formel endet unerwartet"));
             char c = _s[_i];
 
             if (c == '(')
@@ -198,9 +199,9 @@ public sealed class Formula
             if (c == '[')
             {
                 int end = _s.IndexOf(']', _i + 1);
-                if (end < 0) throw Error("Fehlende „]“ nach Sensor");
+                if (end < 0) throw Error(L("Fehlende „]“ nach Sensor"));
                 var id = _s.Substring(_i + 1, end - _i - 1).Trim();
-                if (id.Length == 0) throw Error("Leerer Sensor []");
+                if (id.Length == 0) throw Error(L("Leerer Sensor []"));
                 _i = end + 1;
                 if (!Refs.Contains(id)) Refs.Add(id);
                 return new Ref(id);
@@ -211,7 +212,7 @@ public sealed class Formula
                 int start = _i;
                 while (_i < _s.Length && (char.IsDigit(_s[_i]) || _s[_i] == '.')) _i++;
                 if (!double.TryParse(_s.AsSpan(start, _i - start), NumberStyles.Float, CultureInfo.InvariantCulture, out var v))
-                    throw Error($"Ungültige Zahl „{_s[start.._i]}“ (Dezimalpunkt verwenden)");
+                    throw Error(L("Ungültige Zahl „{0}“ (Dezimalpunkt verwenden)", _s[start.._i]));
                 return new Num(v);
             }
 
@@ -221,7 +222,7 @@ public sealed class Formula
                 while (_i < _s.Length && char.IsLetter(_s[_i])) _i++;
                 var name = _s[start.._i].ToLowerInvariant();
                 if (!Functions.TryGetValue(name, out var arity))
-                    throw Error($"Unbekannte Funktion „{name}“ (erlaubt: {string.Join(", ", Functions.Keys)}). Sensoren in [ ] schreiben.");
+                    throw Error(L("Unbekannte Funktion „{0}“ (erlaubt: {1}). Sensoren in [ ] schreiben.", name, string.Join(", ", Functions.Keys)));
                 Expect('(');
                 var args = new List<Node> { Expr() };
                 Skip();
@@ -233,11 +234,11 @@ public sealed class Formula
                 }
                 Expect(')');
                 if (args.Count < arity.Min || args.Count > arity.Max)
-                    throw Error($"{name} erwartet {(arity.Min == arity.Max ? arity.Min.ToString() : $"{arity.Min} bis {arity.Max}")} Argument(e)");
+                    throw Error(arity.Min == arity.Max ? L("{0} erwartet {1} Argument(e)", name, arity.Min) : L("{0} erwartet {1} bis {2} Argument(e)", name, arity.Min, arity.Max));
                 return new Call(name, args);
             }
 
-            throw Error($"Unerwartetes Zeichen „{c}“");
+            throw Error(L("Unerwartetes Zeichen „{0}“", c));
         }
 
         private void Skip()
@@ -250,10 +251,10 @@ public sealed class Formula
         private void Expect(char c)
         {
             Skip();
-            if (!Peek(c)) throw Error($"„{c}“ erwartet");
+            if (!Peek(c)) throw Error(L("„{0}“ erwartet", c));
             _i++;
         }
 
-        private FormatException Error(string msg) => new($"{msg} (Position {_i + 1})");
+        private FormatException Error(string msg) => new(msg + " " + L("(Position {0})", _i + 1));
     }
 }

@@ -4,9 +4,12 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using Z10.Core.Device;
+using Z10.Core.Localization;
 using Z10.Core.Rendering;
 using Z10.Core.Sensors;
 using Z10.Core.Storage;
+using static Z10.Core.Localization.Loc;
 
 namespace Z10.App;
 
@@ -18,11 +21,11 @@ public partial class OptionsView : UserControl
     private static readonly int[] SaverMinutes = { 1, 2, 3, 5, 10, 15, 20, 30, 45, 60 };
     private static readonly (KeyAction Action, string Label)[] KeyActions =
     {
-        (KeyAction.None, "nichts"),
-        (KeyAction.Previous, "vorheriges Applet"),
-        (KeyAction.Next, "nächstes Applet"),
-        (KeyAction.TogglePause, "Rotation anhalten / fortsetzen"),
-        (KeyAction.ToggleDisplay, "Display freigeben / übernehmen"),
+        (KeyAction.None, L("nichts")),
+        (KeyAction.Previous, L("vorheriges Applet")),
+        (KeyAction.Next, L("nächstes Applet")),
+        (KeyAction.TogglePause, L("Rotation anhalten / fortsetzen")),
+        (KeyAction.ToggleDisplay, L("Display freigeben / übernehmen")),
     };
 
     private readonly AppState _state;
@@ -33,23 +36,24 @@ public partial class OptionsView : UserControl
     {
         _state = state;
         InitializeComponent();
+        UiTranslator.Apply(this);
         var s = _state.Settings;
 
-        foreach (var d in Delays) DelayBox.Items.Add(d == 20 ? "20 ms (empfohlen)" : d == 10 ? "10 ms (getestetes Minimum)" : $"{d} ms");
+        foreach (var d in Delays) DelayBox.Items.Add(d == 20 ? L("20 ms (empfohlen)") : d == 10 ? L("10 ms (getestetes Minimum)") : $"{d} ms");
         DelayBox.SelectedIndex = Math.Max(0, Array.IndexOf(Delays, s.PageDelayMs));
         ReleaseOnExitBox.IsChecked = s.ReleaseOnExit;
         BootBox.IsChecked = s.BootAnimation;
         AutoStartBox.IsChecked = AutoStart.IsEnabled();
 
         foreach (var ms in SensorIntervals)
-            SensorIntervalBox.Items.Add(ms < 1000 ? $"{ms / 1000.0:0.##} Sekunden" : ms == 1000 ? "1 Sekunde (Standard)" : $"{ms / 1000} Sekunden");
+            SensorIntervalBox.Items.Add(ms == 1000 ? L("1 Sekunde (Standard)") : L("{0} Sekunden", ms / 1000.0));
         int si = Array.IndexOf(SensorIntervals, s.SensorIntervalMs);
         SensorIntervalBox.SelectedIndex = si < 0 ? Array.IndexOf(SensorIntervals, 1000) : si;
         RtssBox.IsChecked = s.RtssEnabled;
         AfterburnerBox.IsChecked = s.AfterburnerEnabled;
         AudioBox.IsChecked = s.AudioEnabled;
 
-        foreach (var m in SaverMinutes) SaverMinutesBox.Items.Add(m == 1 ? "1 Minute" : $"{m} Minuten");
+        foreach (var m in SaverMinutes) SaverMinutesBox.Items.Add(m == 1 ? L("1 Minute") : L("{0} Minuten", m));
         foreach (var k in Enum.GetValues<ScreensaverKind>()) SaverKindBox.Items.Add(Screensavers.DisplayName(k));
         SaverBox.IsChecked = s.ScreensaverEnabled;
         int mi = Array.IndexOf(SaverMinutes, s.ScreensaverMinutes);
@@ -62,6 +66,16 @@ public partial class OptionsView : UserControl
         E6Box.SelectedIndex = Math.Max(0, Array.FindIndex(KeyActions, k => k.Action == s.E6Action));
         E7Box.SelectedIndex = Math.Max(0, Array.FindIndex(KeyActions, k => k.Action == s.E7Action));
         _state.Engine.KeyPressed += (_, _) => Dispatcher.BeginInvoke(Refresh);
+
+        _languages = Loc.Available().ToArray();
+        LanguageBox.Items.Add(L("Automatisch (Windows-Sprache)"));
+        foreach (var lang in _languages) LanguageBox.Items.Add(lang.Name);
+        int li = Array.FindIndex(_languages, l => l.Code == s.Language);
+        LanguageBox.SelectedIndex = li < 0 ? 0 : li + 1;
+        LayoutBox.Items.Add(L("Automatisch (Windows-Eingabesprache)"));
+        foreach (var layout in Z10KeyLayout.Layouts) LayoutBox.Items.Add(layout.Name);
+        int ki = Z10KeyLayout.Layouts.ToList().FindIndex(l => l.Id == s.KeyboardLayout);
+        LayoutBox.SelectedIndex = ki < 0 ? 0 : ki + 1;
         _loading = false;
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -73,23 +87,58 @@ public partial class OptionsView : UserControl
     private void Refresh()
     {
         var c = CultureInfo.CurrentCulture;
-        RtssStatus.Text = !_state.Settings.RtssEnabled ? "ausgeschaltet"
+        RtssStatus.Text = !_state.Settings.RtssEnabled ? L("ausgeschaltet")
             : !_state.Rtss.IsAvailable
-                ? (_state.Afterburner.IsAvailable ? "RTSS läuft nicht – Afterburner allein liefert keine Framerate" : "RTSS läuft nicht")
+                ? (_state.Afterburner.IsAvailable ? L("RTSS läuft nicht – Afterburner allein liefert keine Framerate") : L("RTSS läuft nicht"))
             : _state.Rtss.ActiveApp is string app
-                ? $"aktiv: {app} · {_state.Sensors.GetValue(RtssSensorSource.FpsId)?.ToString("0", c) ?? "–"} FPS"
-                : "RTSS läuft, aber kein Spiel erkannt";
+                ? L("aktiv:") + $" {app} · {_state.Sensors.GetValue(RtssSensorSource.FpsId)?.ToString("0", c) ?? "–"} FPS"
+                : L("RTSS läuft, aber kein Spiel erkannt");
         int abCount = _state.Afterburner.Sensors.Count;
-        AfterburnerStatus.Text = !_state.Settings.AfterburnerEnabled ? "ausgeschaltet"
-            : _state.Afterburner.IsAvailable ? $"verbunden · {abCount} Werte" : "Afterburner läuft nicht";
+        AfterburnerStatus.Text = !_state.Settings.AfterburnerEnabled ? L("ausgeschaltet")
+            : _state.Afterburner.IsAvailable ? L("verbunden · {0} Werte", abCount) : L("Afterburner läuft nicht");
         var vol = _state.Sensors.GetValue(AudioSensorSource.DefaultOutVolume);
         var muted = _state.Sensors.GetValue(AudioSensorSource.DefaultOutMute) == 1;
-        AudioStatus.Text = !_state.Settings.AudioEnabled ? "ausgeschaltet"
-            : _state.Audio.Error is string ae ? "Fehler: " + ae
-            : vol is double volPct ? $"Standardgerät: {volPct.ToString("0", c)} %{(muted ? " (stumm)" : "")} · Sensoren unter /audio/…" : "kein Wiedergabegerät gefunden";
-        KeysStatus.Text = !_state.Settings.KeysEnabled ? "ausgeschaltet"
-            : !_state.Keys.IsConnected ? "Tastenkanal nicht verbunden"
-            : _state.Engine.LastKey is string last ? $"bereit · zuletzt gedrückt: {last}" : "bereit · drück E6 oder E7 zum Testen";
+        AudioStatus.Text = !_state.Settings.AudioEnabled ? L("ausgeschaltet")
+            : _state.Audio.Error is string ae ? L("Fehler:") + " " + ae
+            : vol is double volPct ? L("Standardgerät:") + $" {volPct.ToString("0", c)} %{(muted ? " " + L("(stumm)") : "")} · " + L("Sensoren unter /audio/…") : L("kein Wiedergabegerät gefunden");
+        KeysStatus.Text = !_state.Settings.KeysEnabled ? L("ausgeschaltet")
+            : !_state.Keys.IsConnected ? L("Tastenkanal nicht verbunden")
+            : _state.Engine.LastKey is string last ? L("bereit · zuletzt gedrückt: {0}", last) : L("bereit · drück E6 oder E7 zum Testen");
+    }
+
+    private LanguageInfo[] _languages = Array.Empty<LanguageInfo>();
+
+    private void Language_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || LanguageBox.SelectedIndex < 0) return;
+        _state.Settings.Language = LanguageBox.SelectedIndex == 0 ? "auto" : _languages[LanguageBox.SelectedIndex - 1].Code;
+        _state.SaveSettings();
+        string wanted = _state.Settings.Language == "auto" ? Loc.Detect() : _state.Settings.Language;
+        RestartPanel.Visibility = wanted == Loc.Current ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void Restart_Click(object sender, RoutedEventArgs e) => ((App)Application.Current).Restart();
+
+    private void LanguageTemplate_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var folder = Loc.UserFolder ?? System.IO.Path.Combine(_state.Store.Root, "lang");
+            var path = Loc.ExportTemplate(folder);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, L("Sprache"), MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void Layout_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || LayoutBox.SelectedIndex < 0) return;
+        _state.Settings.KeyboardLayout = LayoutBox.SelectedIndex == 0 ? "auto" : Z10KeyLayout.Layouts[LayoutBox.SelectedIndex - 1].Id;
+        _state.SaveSettings();
+        _state.ApplyKeyboardLayout();
     }
 
     private void Delay_Changed(object sender, SelectionChangedEventArgs e)
@@ -135,7 +184,7 @@ public partial class OptionsView : UserControl
         bool want = AutoStartBox.IsChecked == true;
         if (!AutoStart.Set(want))
         {
-            MessageBox.Show("Die Aufgabe für den Autostart konnte nicht geändert werden.", "Autostart",
+            MessageBox.Show(L("Die Aufgabe für den Autostart konnte nicht geändert werden."), L("Autostart"),
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         AutoStartBox.IsChecked = AutoStart.IsEnabled();

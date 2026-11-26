@@ -92,7 +92,7 @@
             <Canvas x:Name="KeyCanvas"/>
           </Viewbox>
           <TextBlock Style="{StaticResource Hint}" Margin="0,12,0,0"
-                     Text="Klick auf eine Taste schaltet sie an oder aus, Gruppen schalten alle Tasten der Gruppe um. Gestrichelte Tasten (&lt; und #) haben keine LED. Die Reihenfolge der E-Tasten ist noch nicht geprüft."/>
+                     Text="Klick auf eine Taste schaltet sie an oder aus, Gruppen schalten alle Tasten der Gruppe um. Gestrichelte Tasten haben keine LED. Das Layout der Grafik stellst du unter „Optionen“ ein."/>
         </StackPanel>
       </Border>
 

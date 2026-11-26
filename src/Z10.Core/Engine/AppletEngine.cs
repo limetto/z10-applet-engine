@@ -1,3 +1,4 @@
+using static Z10.Core.Localization.Loc;
 using Z10.Core.Device;
 using Z10.Core.Model;
 using Z10.Core.Rendering;
@@ -53,8 +54,8 @@ public sealed class AppletEngine : IDisposable
     private bool _firstFrame;
 
     /// <summary>Pseudo-Applet, unter dem die Startanimation gemeldet wird.</summary>
-    public static readonly Applet BootApplet = new() { Id = "boot", Name = "Startanimation" };
-    public static readonly Applet ScreensaverApplet = new() { Id = "screensaver", Name = "Bildschirmschoner" };
+    public static readonly Applet BootApplet = new() { Id = "boot", Name = L("Startanimation") };
+    public static readonly Applet ScreensaverApplet = new() { Id = "screensaver", Name = L("Bildschirmschoner") };
 
     // ---- Bildschirmschoner ----
     private IScreensaver? _saver;
@@ -148,7 +149,7 @@ public sealed class AppletEngine : IDisposable
     public event Action? StatusChanged;
 
     public EngineState State { get; private set; } = EngineState.Searching;
-    public string StatusText { get; private set; } = "Suche Tastatur …";
+    public string StatusText { get; private set; } = L("Suche Tastatur …");
     public string? DeviceInfo { get; private set; }
     public SensorHistory History => _history;
     public AppletRenderer Renderer => _renderer;
@@ -396,7 +397,7 @@ public sealed class AppletEngine : IDisposable
         var done = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
         lock (_jobLock)
         {
-            if (_job is not null || DeviceBusy) throw new InvalidOperationException("Es läuft bereits ein Gerätebefehl.");
+            if (_job is not null || DeviceBusy) throw new InvalidOperationException(L("Es läuft bereits ein Gerätebefehl."));
             _job = (d => job(d), lcdMessage, done);
         }
         if (_thread is null) RunPendingJob();     // ohne Start() (Tests)
@@ -428,7 +429,7 @@ public sealed class AppletEngine : IDisposable
 
         try
         {
-            if (display is null) throw new IOException("Die Tastatur ist nicht verbunden.");
+            if (display is null) throw new IOException(L("Die Tastatur ist nicht verbunden."));
             if (job.Message is not null) SetStatus(State, job.Message);
             job.Done.SetResult(job.Run(display.Device));
         }
@@ -496,7 +497,7 @@ public sealed class AppletEngine : IDisposable
         {
             RunPendingJob();
             try { Tick(DateTime.UtcNow); }
-            catch (Exception ex) { SetStatus(EngineState.Error, "Fehler: " + ex.Message); }
+            catch (Exception ex) { SetStatus(EngineState.Error, L("Fehler:") + " " + ex.Message); }
             Thread.Sleep(_transFrom is not null || _saver is not null ? 5 : 50);   // Übergang so flüssig wie die Tastatur erlaubt
         }
     }
@@ -511,7 +512,7 @@ public sealed class AppletEngine : IDisposable
                 _display.Device.Dispose();
                 _display = null;
             }
-            SetStatus(EngineState.Conflict, "EVGA Unleash läuft – Display freigegeben");
+            SetStatus(EngineState.Conflict, L("EVGA Unleash läuft – Display freigegeben"));
             return;
         }
 
@@ -521,7 +522,7 @@ public sealed class AppletEngine : IDisposable
             var dev = _deviceFactory();
             if (dev is null)
             {
-                SetStatus(EngineState.Searching, "Tastatur nicht gefunden – suche weiter …");
+                SetStatus(EngineState.Searching, L("Tastatur nicht gefunden – suche weiter …"));
                 return;
             }
             dev.PageDelay = TimeSpan.FromMilliseconds(Math.Max(10, _settings.PageDelayMs));
@@ -533,7 +534,7 @@ public sealed class AppletEngine : IDisposable
             _nextRender = DateTime.MinValue;
             DeviceInfo = dev.Description;
             _firstFrame = true;
-            SetStatus(EngineState.Connected, "Z10 verbunden");
+            SetStatus(EngineState.Connected, L("Z10 verbunden"));
             if (_bootPending)
             {
                 // Startanimation einmal pro Programmstart, sobald die Tastatur da ist
@@ -704,7 +705,7 @@ public sealed class AppletEngine : IDisposable
             _display?.Device.Dispose();
             _display = null;
             _nextDeviceTry = DateTime.UtcNow.AddSeconds(3);
-            SetStatus(EngineState.Error, "Verbindung verloren: " + ex.Message);
+            SetStatus(EngineState.Error, L("Verbindung verloren:") + " " + ex.Message);
         }
     }
 

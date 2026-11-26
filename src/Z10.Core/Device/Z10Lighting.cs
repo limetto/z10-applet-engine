@@ -1,3 +1,4 @@
+using static Z10.Core.Localization.Loc;
 namespace Z10.Core.Device;
 
 /// <summary>Beleuchtungseffekte, wie EVGA Unleash sie anbietet.</summary>
@@ -140,7 +141,7 @@ public static class Z10Lighting
     /// </summary>
     public static LightingState Write(IZ10Device dev, LightingConfig config, IProgress<string>? progress = null)
     {
-        progress?.Report("Lese Profil …");
+        progress?.Report(L("Lese Profil …"));
         var status = Query(dev, CmdStatus, 0);
         byte profile = (byte)(status[2] is >= 1 and <= 5 ? status[2] : 1);
         var mask = BuildMask(config);
@@ -153,7 +154,7 @@ public static class Z10Lighting
             _ => ModeAll,
         };
 
-        progress?.Report($"Schreibe Profil {profile} …");
+        progress?.Report(L("Schreibe Profil {0} …", profile));
         Send(dev, CmdOpen, profile);
         Send(dev, CmdMask, profile, mask);
         for (int n = 1; n <= 5; n++)
@@ -170,18 +171,18 @@ public static class Z10Lighting
             Send(dev, CmdWriteBlock, (byte)n, block);
         }
 
-        progress?.Report("Warte auf die Tastatur …");
+        progress?.Report(L("Warte auf die Tastatur …"));
         for (int i = 0; i < StatusPolls; i++) Query(dev, CmdStatus, 0);   // ~0,55 s je Abfrage wie Unleash
 
-        progress?.Report("Speichere …");
+        progress?.Report(L("Speichere …"));
         Send(dev, CmdKeyTable, profile, KeyTable);
         Send(dev, CmdSave, profile);
         Sleep(SaveDelay);
 
-        progress?.Report("Prüfe …");
+        progress?.Report(L("Prüfe …"));
         var state = Read(dev);
         if (!state.Mask.AsSpan(0, Positions).SequenceEqual(mask.AsSpan(0, Positions)))
-            throw new IOException("Die Tastatur hat die Tastenauswahl nicht übernommen.");
+            throw new IOException(L("Die Tastatur hat die Tastenauswahl nicht übernommen."));
         return state;
     }
 
@@ -192,7 +193,7 @@ public static class Z10Lighting
     /// </summary>
     public static void PreviewColor(IZ10Device dev, string color)
     {
-        if (!TryParseColor(color, out var rgb)) throw new ArgumentException("Ungültige Farbe: " + color);
+        if (!TryParseColor(color, out var rgb)) throw new ArgumentException(L("Ungültige Farbe:") + " " + color);
         var status = Query(dev, CmdStatus, 0);
         byte profile = (byte)(status[2] is >= 1 and <= 5 ? status[2] : 1);
         var block = ReadBlock(dev, profile);
@@ -246,7 +247,7 @@ public static class Z10Lighting
     private static byte[] ReadBlock(IZ10Device dev, int n)
     {
         var r = Query(dev, CmdReadBlock, (byte)n);
-        if (r[2] != n) throw new IOException($"Unerwartete Antwort auf Block {n}.");
+        if (r[2] != n) throw new IOException(L("Unerwartete Antwort auf Block {0}.", n));
         return r[Z10Protocol.PayloadOffset..(Z10Protocol.PayloadOffset + 256)];
     }
 
@@ -256,7 +257,7 @@ public static class Z10Lighting
         var r = dev.GetFeature();
         Sleep(ReadDelay);
         if (r.Length < Z10Protocol.ReportLength || r[1] != cmd)
-            throw new IOException($"Unerwartete Antwort auf Befehl 0x{cmd:X2}.");
+            throw new IOException(L("Unerwartete Antwort auf Befehl 0x{0:X2}.", cmd));
         return r;
     }
 

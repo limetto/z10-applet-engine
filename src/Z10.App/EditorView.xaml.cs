@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using static Z10.Core.Localization.Loc;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -39,6 +40,7 @@ public partial class EditorView : UserControl
     {
         _state = state;
         InitializeComponent();
+        UiTranslator.Apply(this);
         _renderer = new AppletRenderer(state.Text, state.Sensors, state.Engine.History) { Images = state.Images };
         EditorImage.Source = _bitmap;
         Layers.ItemsSource = _layers;
@@ -71,7 +73,7 @@ public partial class EditorView : UserControl
             return;
         }
         if (_dirty && _work is not null &&
-            MessageBox.Show("Ungespeicherte Änderungen verwerfen?", "Layout-Editor", MessageBoxButton.YesNo) != MessageBoxResult.Yes)
+            MessageBox.Show(L("Ungespeicherte Änderungen verwerfen?"), L("Layout-Editor"), MessageBoxButton.YesNo) != MessageBoxResult.Yes)
         {
             SelectPicker(_work.Id);
             return;
@@ -297,7 +299,7 @@ public partial class EditorView : UserControl
     {
         if (Layers.SelectedItem is not Widget w) return;
         var copy = w.Clone();
-        copy.Name = w.Name + " (Kopie)";
+        copy.Name = w.Name + " " + L("(Kopie)");
         copy.X = Math.Min(copy.X + 4, Framebuffer.DefaultWidth - 1);
         copy.Y = Math.Min(copy.Y + 4, Framebuffer.DefaultHeight - 1);
         _layers.Add(copy);
@@ -321,15 +323,15 @@ public partial class EditorView : UserControl
         if (_work is null || sender is not Button { Tag: string kind }) return;
         Widget w = kind switch
         {
-            "text" => new TextWidget { Name = "Text", W = 60, H = 7, Text = "Text" },
-            "sensor" => new SensorWidget { Name = "Sensorwert", W = 60, H = 7, Sensor = DefaultApplets.CpuLoad, Format = "{value:0}%" },
-            "bar" => new BarWidget { Name = "Balken", W = 80, H = 7, Sensor = DefaultApplets.CpuLoad },
-            "graph" => new GraphWidget { Name = "Verlauf", W = 80, H = 16, Sensor = DefaultApplets.CpuLoad, Min = 0, Max = 100 },
-            "clock" => new ClockWidget { Name = "Uhr", W = 60, H = 7, Format = "HH:mm:ss" },
-            "line" => new ShapeWidget { Name = "Linie", Shape = ShapeKind.Line, W = 40, H = 1 },
-            "rect" => new ShapeWidget { Name = "Rechteck", Shape = ShapeKind.Rectangle, W = 30, H = 12 },
-            "ellipse" => new ShapeWidget { Name = "Oval", Shape = ShapeKind.Ellipse, W = 16, H = 16 },
-            _ => new IconWidget { Name = "Symbol", W = 8, H = 8, Icon = "cpu" },
+            "text" => new TextWidget { Name = L("Text"), W = 60, H = 7, Text = L("Text") },
+            "sensor" => new SensorWidget { Name = L("Sensorwert"), W = 60, H = 7, Sensor = DefaultApplets.CpuLoad, Format = "{value:0}%" },
+            "bar" => new BarWidget { Name = L("Balken"), W = 80, H = 7, Sensor = DefaultApplets.CpuLoad },
+            "graph" => new GraphWidget { Name = L("Verlauf"), W = 80, H = 16, Sensor = DefaultApplets.CpuLoad, Min = 0, Max = 100 },
+            "clock" => new ClockWidget { Name = L("Uhr"), W = 60, H = 7, Format = "HH:mm:ss" },
+            "line" => new ShapeWidget { Name = L("Linie"), Shape = ShapeKind.Line, W = 40, H = 1 },
+            "rect" => new ShapeWidget { Name = L("Rechteck"), Shape = ShapeKind.Rectangle, W = 30, H = 12 },
+            "ellipse" => new ShapeWidget { Name = L("Oval"), Shape = ShapeKind.Ellipse, W = 16, H = 16 },
+            _ => new IconWidget { Name = L("Symbol"), W = 8, H = 8, Icon = "cpu" },
         };
         _layers.Add(w);
         Layers.SelectedItem = w;
@@ -346,11 +348,11 @@ public partial class EditorView : UserControl
         _valueWidget = null;
         if (w is null)
         {
-            PropsTitle.Text = "EIGENSCHAFTEN";
+            PropsTitle.Text = L("EIGENSCHAFTEN");
             PropsPanel.Children.Add(new TextBlock { Text = "Kein Baustein ausgewählt.", Style = (Style)FindResource("Hint") });
             return;
         }
-        PropsTitle.Text = "EIGENSCHAFTEN · " + w.KindName.ToUpperInvariant();
+        PropsTitle.Text = L("EIGENSCHAFTEN") + " · " + L(w.KindName).ToUpperInvariant();
 
         AddText("Name", w.Name, v => { w.Name = v; Layers.Items.Refresh(); });
 
@@ -409,7 +411,7 @@ public partial class EditorView : UserControl
         AddLabel("Überlagerung mit Bausteinen darunter");
         var blend = new ComboBox
         {
-            ItemsSource = new[] { "Normal (Pixel setzen)", "Invertieren (XOR, z. B. Schrift auf Balken)", "Ausstanzen (Pixel löschen)" },
+            ItemsSource = new[] { L("Normal (Pixel setzen)"), L("Invertieren (XOR, z. B. Schrift auf Balken)"), L("Ausstanzen (Pixel löschen)") },
             SelectedIndex = (int)w.Blend,
         };
         blend.SelectionChanged += (_, _) => { w.Blend = (BlendMode)Math.Max(0, blend.SelectedIndex); Changed(); };
@@ -430,7 +432,7 @@ public partial class EditorView : UserControl
     private void AddShapeProps(ShapeWidget sh)
     {
         AddLabel("Form");
-        var shape = new ComboBox { ItemsSource = new[] { "Linie", "Rechteck", "Oval" }, SelectedIndex = (int)sh.Shape };
+        var shape = new ComboBox { ItemsSource = new[] { L("Linie"), L("Rechteck"), L("Oval") }, SelectedIndex = (int)sh.Shape };
         shape.SelectionChanged += (_, _) =>
         {
             sh.Shape = (ShapeKind)Math.Max(0, shape.SelectedIndex);
@@ -445,7 +447,7 @@ public partial class EditorView : UserControl
             AddLabel("Richtung");
             var dir = new ComboBox
             {
-                ItemsSource = new[] { "↘ links oben nach rechts unten", "↗ links unten nach rechts oben" },
+                ItemsSource = new[] { L("↘ links oben nach rechts unten"), L("↗ links unten nach rechts oben") },
                 SelectedIndex = (int)sh.Direction,
             };
             dir.SelectionChanged += (_, _) => { sh.Direction = (LineDirection)Math.Max(0, dir.SelectedIndex); Changed(); };
@@ -480,10 +482,10 @@ public partial class EditorView : UserControl
     }
 
     private void AddLabel(string text) =>
-        PropsPanel.Children.Add(new TextBlock { Text = text, Style = (Style)FindResource("Label") });
+        PropsPanel.Children.Add(new TextBlock { Text = L(text), Style = (Style)FindResource("Label") });
 
     private void AddHint(string text) =>
-        PropsPanel.Children.Add(new TextBlock { Text = text, Style = (Style)FindResource("Hint"), Margin = new Thickness(0, 4, 0, 0) });
+        PropsPanel.Children.Add(new TextBlock { Text = L(text), Style = (Style)FindResource("Hint"), Margin = new Thickness(0, 4, 0, 0) });
 
     private void AddText(string label, string value, Action<string> set, string? hint = null)
     {
@@ -501,7 +503,7 @@ public partial class EditorView : UserControl
         {
             grid.ColumnDefinitions.Add(new ColumnDefinition());
             var sp = new StackPanel { Margin = new Thickness(i == 0 ? 0 : 6, 0, i == fields.Length - 1 ? 0 : 6, 0) };
-            sp.Children.Add(new TextBlock { Text = fields[i].Label, Style = (Style)FindResource("Label") });
+            sp.Children.Add(new TextBlock { Text = L(fields[i].Label), Style = (Style)FindResource("Label") });
             var box = new TextBox { Text = fields[i].Get() };
             var f = fields[i];
             box.TextChanged += (_, _) => { f.Set(box.Text); Changed(); };
@@ -514,7 +516,7 @@ public partial class EditorView : UserControl
 
     private void AddCheck(string label, bool value, Action<bool> set)
     {
-        var cb = new CheckBox { Content = label, IsChecked = value };
+        var cb = new CheckBox { Content = L(label), IsChecked = value };
         cb.Click += (_, _) => { set(cb.IsChecked == true); Changed(); };
         PropsPanel.Children.Add(cb);
     }
@@ -540,13 +542,13 @@ public partial class EditorView : UserControl
         var list = new List<IconChoice>();
         foreach (var (category, names) in Icons.Categories)
             foreach (var n in names)
-                list.Add(new IconChoice(n, $"{category} · {n}", LcdImage.ToImage(Icons.Get(n))));
+                list.Add(new IconChoice(n, $"{L(category)} · {L(n)}", LcdImage.ToImage(Icons.Get(n))));
         foreach (var a in _state.Images.All)
             list.Add(new IconChoice(Icons.ImagePrefix + a.Name,
-                $"Eigene Grafik · {a.Name} ({a.Width}×{a.Height}{(a.IsAnimated ? $", {a.Frames.Count} Bilder" : "")})",
+                L("Eigene Grafik") + $" · {a.Name} ({a.Width}×{a.Height}{(a.IsAnimated ? ", " + L("{0} Bilder", a.Frames.Count) : "")})",
                 LcdImage.ToImage(a.Frame(0))));
         if (!string.IsNullOrWhiteSpace(current) && list.All(c => !c.Spec.Equals(current, StringComparison.OrdinalIgnoreCase)))
-            list.Insert(0, new IconChoice(current, "Eigene Hex-Zeilen", LcdImage.ToImage(Icons.Get(current, _state.Images))));
+            list.Insert(0, new IconChoice(current, L("Eigene Hex-Zeilen"), LcdImage.ToImage(Icons.Get(current, _state.Images))));
         return list;
     }
 
@@ -560,8 +562,8 @@ public partial class EditorView : UserControl
         PropsPanel.Children.Add(cb);
 
         var buttons = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
-        var import = new Button { Content = "Grafik importieren …", Margin = new Thickness(0, 0, 6, 6) };
-        var delete = new Button { Content = "Grafik löschen", Margin = new Thickness(0, 0, 6, 6),
+        var import = new Button { Content = L("Grafik importieren …"), Margin = new Thickness(0, 0, 6, 6) };
+        var delete = new Button { Content = L("Grafik löschen"), Margin = new Thickness(0, 0, 6, 6),
                                   IsEnabled = w.Icon.StartsWith(Icons.ImagePrefix, StringComparison.OrdinalIgnoreCase) };
         buttons.Children.Add(import);
         buttons.Children.Add(delete);
@@ -600,8 +602,8 @@ public partial class EditorView : UserControl
         {
             if (!w.Icon.StartsWith(Icons.ImagePrefix, StringComparison.OrdinalIgnoreCase)) return;
             var name = w.Icon[Icons.ImagePrefix.Length..];
-            if (MessageBox.Show($"Grafik „{name}“ löschen? Applets, die sie verwenden, zeigen dann ein Ersatzsymbol.",
-                    "Grafik löschen", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            if (MessageBox.Show(L("Grafik „{0}“ löschen? Applets, die sie verwenden, zeigen dann ein Ersatzsymbol.", name),
+                    L("Grafik löschen"), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
             _state.Images.Delete(name);
             Apply("cpu");
             BuildProps(w);
@@ -634,7 +636,7 @@ public partial class EditorView : UserControl
     private void AddAlign(TextAlign value, Action<TextAlign> set)
     {
         AddLabel("Ausrichtung im Rahmen");
-        var names = new[] { "Links", "Mitte", "Rechts" };
+        var names = new[] { L("Links"), L("Mitte"), L("Rechts") };
         var cb = new ComboBox { ItemsSource = names, SelectedIndex = (int)value };
         cb.SelectionChanged += (_, _) => { set((TextAlign)Math.Max(0, cb.SelectedIndex)); Changed(); };
         PropsPanel.Children.Add(cb);
@@ -682,7 +684,7 @@ public partial class EditorView : UserControl
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var mode = new ComboBox { ItemsSource = new[] { "Aus", "Mittelwert", "Median (gegen Ausreißer)" }, SelectedIndex = (int)w.Smoothing };
+        var mode = new ComboBox { ItemsSource = new[] { L("Aus"), L("Mittelwert"), L("Median (gegen Ausreißer)") }, SelectedIndex = (int)w.Smoothing };
         var secs = new TextBox { Text = w.SmoothingSeconds.ToString(), Margin = new Thickness(6, 0, 0, 0), IsEnabled = w.Smoothing != SmoothingMode.None };
         var unit = new TextBlock { Text = " Sekunden", VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)FindResource("MutedBrush") };
         Grid.SetColumn(secs, 1);
@@ -702,7 +704,7 @@ public partial class EditorView : UserControl
             if (int.TryParse(secs.Text, out var n) && n >= 2 && n <= 600) { w.SmoothingSeconds = n; Changed(); UpdateValueHint(); }
         };
         PropsPanel.Children.Add(row);
-        AddHint("Mittelwert bzw. Median der letzten Sekunden (1 Messung pro Sekunde). Warnwerte nutzen den geglätteten Wert.");
+        AddHint("Mittelwert bzw. Median über die eingestellten Sekunden. Warnwerte nutzen den geglätteten Wert.");
     }
 
     private void UpdateValueHint()
@@ -712,14 +714,14 @@ public partial class EditorView : UserControl
         var raw = _state.Sensors.GetValue(w.Sensor);
         if (raw is not double v)
         {
-            _valueHint.Text = info is null ? "Kein Wert – Sensor nicht gefunden?" : $"{info.Hardware} · {info.Name}: zurzeit kein Wert";
+            _valueHint.Text = info is null ? L("Kein Wert – Sensor nicht gefunden?") : $"{info.Hardware} · {info.Name}: " + L("zurzeit kein Wert");
             return;
         }
         var c = CultureInfo.CurrentCulture;
         string unit = info?.Unit is { Length: > 0 } u ? " " + u : "";
-        var text = $"Aktuell: {v.ToString("0.##", c)}{unit}";
+        var text = L("Aktuell") + $": {v.ToString("0.##", c)}{unit}";
         if (w.Smoothing != SmoothingMode.None && _renderer.ValueOf(w) is double sm)
-            text += $" · geglättet: {sm.ToString("0.##", c)}{unit}";
+            text += " · " + L("geglättet") + $": {sm.ToString("0.##", c)}{unit}";
         if (info is not null) text += $"{Environment.NewLine}{info.Hardware} · {info.Name}";
         _valueHint.Text = text;
     }
@@ -728,21 +730,21 @@ public partial class EditorView : UserControl
     {
         var list = new List<SensorChoice>
         {
-            new(DefaultApplets.CpuTemp, "Automatisch · CPU-Temperatur"),
-            new(DefaultApplets.CpuLoad, "Automatisch · CPU-Last"),
-            new(DefaultApplets.CpuClock, "Automatisch · CPU-Takt"),
-            new(DefaultApplets.GpuTemp, "Automatisch · GPU-Temperatur"),
-            new(DefaultApplets.GpuLoad, "Automatisch · GPU-Last"),
-            new(DefaultApplets.GpuVram, "Automatisch · VRAM belegt (MB)"),
-            new(DefaultApplets.RamUsed, "Automatisch · RAM belegt (GB)"),
-            new(DefaultApplets.RamFree, "Automatisch · RAM frei (GB)"),
-            new(DefaultApplets.RamLoad, "Automatisch · RAM-Auslastung"),
-            new(RtssSensorSource.FpsId, "RTSS · Framerate (FPS)"),
-            new(RtssSensorSource.FrametimeId, "RTSS · Frametime (ms)"),
-            new(AudioSensorSource.DefaultOutVolume, "Audio · Lautstärke Standardgerät (%)"),
-            new(AudioSensorSource.DefaultOutMute, "Audio · Standardgerät stumm (1/0)"),
-            new(AudioSensorSource.DefaultInVolume, "Audio · Mikrofon-Lautstärke (%)"),
-            new(AudioSensorSource.DefaultInMute, "Audio · Mikrofon stumm (1/0)"),
+            new(DefaultApplets.CpuTemp, L("Automatisch · CPU-Temperatur")),
+            new(DefaultApplets.CpuLoad, L("Automatisch · CPU-Last")),
+            new(DefaultApplets.CpuClock, L("Automatisch · CPU-Takt")),
+            new(DefaultApplets.GpuTemp, L("Automatisch · GPU-Temperatur")),
+            new(DefaultApplets.GpuLoad, L("Automatisch · GPU-Last")),
+            new(DefaultApplets.GpuVram, L("Automatisch · VRAM belegt (MB)")),
+            new(DefaultApplets.RamUsed, L("Automatisch · RAM belegt (GB)")),
+            new(DefaultApplets.RamFree, L("Automatisch · RAM frei (GB)")),
+            new(DefaultApplets.RamLoad, L("Automatisch · RAM-Auslastung")),
+            new(RtssSensorSource.FpsId, L("RTSS · Framerate (FPS)")),
+            new(RtssSensorSource.FrametimeId, L("RTSS · Frametime (ms)")),
+            new(AudioSensorSource.DefaultOutVolume, L("Audio · Lautstärke Standardgerät (%)")),
+            new(AudioSensorSource.DefaultOutMute, L("Audio · Standardgerät stumm (1/0)")),
+            new(AudioSensorSource.DefaultInVolume, L("Audio · Mikrofon-Lautstärke (%)")),
+            new(AudioSensorSource.DefaultInMute, L("Audio · Mikrofon stumm (1/0)")),
         };
         foreach (var s in _state.Sensors.Sensors.OrderBy(s => s.Hardware).ThenBy(s => s.Type).ThenBy(s => s.Name))
         {
@@ -786,7 +788,7 @@ public partial class EditorView : UserControl
             int col = Panel.ColumnDefinitions.Count;
             Panel.ColumnDefinitions.Add(new ColumnDefinition());
             var sp = new StackPanel { Margin = new Thickness(col == 0 ? 0 : 4, 0, 0, 0) };
-            sp.Children.Add(new TextBlock { Text = label, Foreground = Brushes.Gray, FontSize = 11, Margin = new Thickness(0, 4, 0, 2) });
+            sp.Children.Add(new TextBlock { Text = L(label), Foreground = Brushes.Gray, FontSize = 11, Margin = new Thickness(0, 4, 0, 2) });
             var box = new TextBox { Text = value.ToString() };
             box.TextChanged += (_, _) => { if (int.TryParse(box.Text, out var v)) { set(v); Changed?.Invoke(); } };
             sp.Children.Add(box);

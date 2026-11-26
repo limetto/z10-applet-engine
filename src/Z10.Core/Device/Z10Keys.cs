@@ -1,3 +1,4 @@
+using static Z10.Core.Localization.Loc;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -30,7 +31,7 @@ public static class Z10Keys
     public static string KeyName(byte code)
     {
         int e = Array.IndexOf(Z10KeyLayout.EKeyPositions, (int)code);
-        return e >= 0 ? $"E{e + 1}" : $"Taste Pos. {code}";
+        return e >= 0 ? $"E{e + 1}" : L("Taste Pos. {0}", code);
     }
 
     /// <summary>Wertet einen Input-Report aus (inkl. Report-ID im ersten Byte). null = kein Tastenereignis.</summary>

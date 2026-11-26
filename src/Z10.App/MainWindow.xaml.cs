@@ -1,5 +1,6 @@
 using System;
 using System.Windows;
+using static Z10.Core.Localization.Loc;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Z10.Core.Engine;
@@ -22,6 +23,7 @@ public partial class MainWindow : Window
     {
         _state = state;
         InitializeComponent();
+        UiTranslator.Apply(this);
 
         _applets = new AppletsView(state);
         _editor = new EditorView(state);
@@ -71,8 +73,8 @@ public partial class MainWindow : Window
     private void UpdateStatus()
     {
         var engine = _state.Engine;
-        DeviceText.Text = engine.Suspended ? "Display freigegeben" : engine.StatusText;
-        ReleaseButton.Content = engine.Suspended ? "Display übernehmen" : "Display freigeben";
+        DeviceText.Text = engine.Suspended ? L("Display freigegeben") : engine.StatusText;
+        ReleaseButton.Content = engine.Suspended ? L("Display übernehmen") : L("Display freigeben");
         bool ok = engine.State == EngineState.Connected && !engine.Suspended;
         bool warn = engine.State == EngineState.Conflict || engine.Suspended;
         SetChip(DeviceChip, DeviceDot, DeviceText, ok ? 0 : warn ? 1 : 2);
@@ -80,7 +82,7 @@ public partial class MainWindow : Window
         var err = _state.Sensors.Error;
         var game = _state.Rtss.ActiveApp is string app && _state.Sensors.GetValue(RtssSensorSource.FpsId) is double fps
             ? $" · {app} {fps:0} FPS" : "";
-        SensorText.Text = (err is null ? $"{_state.Sensors.Sensors.Count} Sensoren" : "Sensorfehler") + game;
+        SensorText.Text = (err is null ? L("{0} Sensoren", _state.Sensors.Sensors.Count) : L("Sensorfehler")) + game;
         SensorChip.ToolTip = err;
         SetChip(SensorChip, SensorDot, SensorText, err is null ? 0 : 2);
     }

@@ -8,6 +8,7 @@ using Z10.Core.Model;
 using Z10.Core.Rendering;
 using Z10.Core.Sensors;
 using Z10.Core.Storage;
+using static Z10.Core.Localization.Loc;
 
 namespace Z10.App;
 
@@ -29,10 +30,31 @@ public sealed class AppState : IDisposable
 
     public event Action? AppletsChanged;
 
+    /// <summary>Das Tastaturlayout für die Beleuchtungsgrafik wurde geändert.</summary>
+    public event Action? KeyboardLayoutChanged;
+
+    /// <summary>Layout aus den Einstellungen übernehmen ("auto" = aktuelles Windows-Eingabegebietsschema).</summary>
+    public void ApplyKeyboardLayout()
+    {
+        var id = Settings.KeyboardLayout;
+        if (string.IsNullOrWhiteSpace(id) || id == "auto")
+        {
+            string? culture = null;
+            try { culture = System.Windows.Forms.InputLanguage.CurrentInputLanguage?.Culture?.Name; } catch (Exception) { }
+            id = Z10KeyLayout.FromCulture(culture ?? System.Globalization.CultureInfo.CurrentCulture.Name);
+        }
+        Z10KeyLayout.Use(id);
+        KeyboardLayoutChanged?.Invoke();
+    }
+
     public AppState()
     {
         Store = new AppStore();
         Settings = Store.LoadSettings();
+        // Sprache vor allem anderen wählen (Standard-Applets werden in der aktiven Sprache angelegt)
+        Z10.Core.Localization.Loc.UserFolder = System.IO.Path.Combine(Store.Root, "lang");
+        Z10.Core.Localization.Loc.Use(Settings.Language);
+        ApplyKeyboardLayout();
         Applets = new ObservableCollection<Applet>(Store.LoadApplets());
         Lhm = new LhmSensorSource();
         Rtss = new RtssSensorSource { Enabled = Settings.RtssEnabled };
@@ -70,7 +92,7 @@ public sealed class AppState : IDisposable
         var json = System.Text.Json.JsonSerializer.Serialize(src, JsonDefaults.Options);
         var copy = System.Text.Json.JsonSerializer.Deserialize<Applet>(json, JsonDefaults.Options)!;
         copy.Id = Guid.NewGuid().ToString("N")[..8];
-        copy.Name = src.Name + " (Kopie)";
+        copy.Name = src.Name + " " + L("(Kopie)");
         copy.Order = Applets.Max(x => x.Order) + 1;
         SaveApplet(copy);
         return copy;

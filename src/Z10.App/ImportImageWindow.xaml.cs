@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Windows;
+using static Z10.Core.Localization.Loc;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -26,6 +27,7 @@ public partial class ImportImageWindow : Window
     {
         _library = library;
         InitializeComponent();
+        UiTranslator.Apply(this);
         Preview.Source = _bitmap;
         LcdImage.Update(_bitmap, new Framebuffer());
         _timer.Tick += (_, _) => NextFrame();
@@ -36,8 +38,8 @@ public partial class ImportImageWindow : Window
     {
         var dlg = new OpenFileDialog
         {
-            Title = "Grafik für das Z10-Display wählen",
-            Filter = "Bilder (*.png;*.gif;*.jpg;*.jpeg;*.bmp)|*.png;*.gif;*.jpg;*.jpeg;*.bmp|Alle Dateien|*.*",
+            Title = L("Grafik für das Z10-Display wählen"),
+            Filter = L("Bilder") + " (*.png;*.gif;*.jpg;*.jpeg;*.bmp)|*.png;*.gif;*.jpg;*.jpeg;*.bmp|" + L("Alle Dateien") + "|*.*",
         };
         if (dlg.ShowDialog(this) != true) return;
         try
@@ -46,7 +48,7 @@ public partial class ImportImageWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, "Die Datei konnte nicht gelesen werden:\n" + ex.Message, "Grafik importieren",
+            MessageBox.Show(this, L("Die Datei konnte nicht gelesen werden:") + "\n" + ex.Message, L("Grafik importieren"),
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
@@ -134,8 +136,8 @@ public partial class ImportImageWindow : Window
         var o = CurrentOptions();
         int count = _source.Frames.Count;
         InfoText.Text = count > 1
-            ? $"Animiert: {count} Bilder{(_source.Truncated ? $" (auf {ImageImporter.MaxFrames} gekürzt)" : "")} · Original {_source.SourceWidth} × {_source.SourceHeight} px · Ziel {o.Width} × {o.Height} px"
-            : $"Original {_source.SourceWidth} × {_source.SourceHeight} px · Ziel {o.Width} × {o.Height} px";
+            ? L("Animiert: {0} Bilder", count) + (_source.Truncated ? " " + L("(auf {0} gekürzt)", ImageImporter.MaxFrames) : "") + " · " + L("Original {0} × {1} px · Ziel {2} × {3} px", _source.SourceWidth, _source.SourceHeight, o.Width, o.Height)
+            : L("Original {0} × {1} px · Ziel {2} × {3} px", _source.SourceWidth, _source.SourceHeight, o.Width, o.Height);
         NextFrame();
     }
 
@@ -159,7 +161,7 @@ public partial class ImportImageWindow : Window
         if (_source is null) return;
         var name = ImageLibrary.SafeName(NameBox.Text);
         if (_library.Get(name) is not null &&
-            MessageBox.Show(this, $"Eine Grafik „{name}“ gibt es schon. Ersetzen?", "Grafik importieren",
+            MessageBox.Show(this, L("Eine Grafik „{0}“ gibt es schon. Ersetzen?", name), L("Grafik importieren"),
                 MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
             return;
         var frames = _source.Convert(CurrentOptions());

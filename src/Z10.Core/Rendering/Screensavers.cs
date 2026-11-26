@@ -1,3 +1,4 @@
+using static Z10.Core.Localization.Loc;
 namespace Z10.Core.Rendering;
 
 public enum ScreensaverKind
@@ -40,10 +41,10 @@ public static class Screensavers
 
     public static string DisplayName(ScreensaverKind kind) => kind switch
     {
-        ScreensaverKind.Starfield => "Sternenflug",
+        ScreensaverKind.Starfield => L("Sternenflug"),
         ScreensaverKind.Matrix => "Matrix",
-        ScreensaverKind.Campfire => "Lagerfeuer",
-        ScreensaverKind.Aquarium => "Aquarium",
+        ScreensaverKind.Campfire => L("Lagerfeuer"),
+        ScreensaverKind.Aquarium => L("Aquarium"),
         _ => "Logo",
     };
 }

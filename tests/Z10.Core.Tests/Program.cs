@@ -1,3 +1,4 @@
+using Z10.Core.Localization;
 using System.Globalization;
 using System.Text.Json;
 using Z10.Core.Device;
@@ -649,8 +650,63 @@ var tests = new List<(string Name, Action Body)>
         True(!plain.InTransition, "Übergang trotz Abschaltung");
     }),
 
+    ("Sprachen: Englisch deckt alle Texte ab, Fallback auf Deutsch", () =>
+    {
+        // Quelltexte durchsuchen: jedes L("…") und jeder Text in XAML braucht eine englische Übersetzung
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !Directory.Exists(Path.Combine(dir.FullName, "src"))) dir = dir.Parent;
+        True(dir is not null, "Quellordner nicht gefunden");
+        var en = Loc.Embedded("en");
+        var missing = new List<string>();
+        void Need(string text)
+        {
+            text = text.Trim();
+            if (text.Length == 0 || !System.Text.RegularExpressions.Regex.IsMatch(text, "[A-Za-zÄÖÜäöüß]")) return;
+            if (text.StartsWith("3842:2601")) return;
+            if (!en.ContainsKey(text) && !missing.Contains(text)) missing.Add(text);
+        }
+        foreach (var f in Directory.GetFiles(Path.Combine(dir!.FullName, "src"), "*.cs", SearchOption.AllDirectories))
+            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(f), "\\b(?:L|AddText|AddLabel|AddCheck|AddHint|AddCombo)\\(\\s*\"((?:[^\"\\\\]|\\\\.)*)\""))
+                Need(System.Text.RegularExpressions.Regex.Unescape(m.Groups[1].Value));
+        foreach (var f in Directory.GetFiles(Path.Combine(dir.FullName, "src"), "*.xaml", SearchOption.AllDirectories))
+            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(f), "\\b(Text|Content|ToolTip|Header|Title)=\"([^\"{][^\"]*)\""))
+                Need(System.Net.WebUtility.HtmlDecode(m.Groups[2].Value));
+        True(missing.Count == 0, "ohne englische Übersetzung: " + string.Join(" | ", missing));
+
+        try
+        {
+            Loc.Use("en");
+            Eq("Save", Loc.L("Speichern"));
+            Eq("Level 3 of 5", Loc.L("Stufe {0} von 5", 3));
+            Eq("Gibt es nicht", Loc.L("Gibt es nicht"));     // ohne Übersetzung: Deutsch
+            Loc.Use("xx");                                    // unbekannte Sprache → Englisch
+            Eq("en", Loc.Current);
+        }
+        finally { Loc.Use("de"); }
+        Eq("Speichern", Loc.L("Speichern"));
+    }),
+
+    ("Tastenlayouts: US (ANSI) und AZERTY", () =>
+    {
+        var (us, usGroups) = Z10KeyLayout.For("us");
+        Eq(us.Count, us.Select(k => k.Position).Distinct().Count());
+        True(us.Any(k => k.Position == 82 && k.Label == "\\"), "US-Backslash fehlt");
+        True(!us.Any(k => k.Position == 19 || k.Position == 68), "ISO-Tasten im US-Layout");
+        Eq(111, usGroups[0].Positions.Count);                         // wie „Alle“ in Unleash
+        Eq("WASD", usGroups[1].Name);
+        Eq("Ctrl", us.First(k => k.Position == Z10KeyLayout.PositionOf(0xE0)).Label);
+        var (fr, frGroups) = Z10KeyLayout.For("fr");
+        Eq("ZQSD", frGroups[1].Name);
+        Eq("AZER", frGroups[2].Name);
+        Eq("us", Z10KeyLayout.FromCulture("en-US"));
+        Eq("uk", Z10KeyLayout.FromCulture("en-GB"));
+        Eq("de", Z10KeyLayout.FromCulture("de-AT"));
+        Eq("nordic", Z10KeyLayout.FromCulture("sv-SE"));
+    }),
+
     ("Tastenlayout: Positionen passen zu den Mitschnitten", () =>
     {
+        Z10KeyLayout.Use("de");
         Eq(256, Z10Lighting.KeyTable.Length);
         var all = Z10KeyLayout.Keys;
         Eq(all.Count, all.Select(k => k.Position).Distinct().Count());

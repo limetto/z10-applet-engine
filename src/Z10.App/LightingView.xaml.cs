@@ -10,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Z10.Core.Device;
 using Z10.Core.Engine;
+using static Z10.Core.Localization.Loc;
 
 namespace Z10.App;
 
@@ -20,12 +21,12 @@ public partial class LightingView : UserControl
 
     private static readonly (LightingEffect Effect, string Name)[] Effects =
     {
-        (LightingEffect.Off, "Aus"),
-        (LightingEffect.Static, "Statisch (alle Tasten)"),
-        (LightingEffect.Breathing, "Atmen (alle Tasten)"),
-        (LightingEffect.Customize, "Ausgewählte Tasten"),
-        (LightingEffect.Trigger, "Trigger (beim Drücken)"),
-        (LightingEffect.Explosion, "Explosion (beim Drücken)"),
+        (LightingEffect.Off, L("Aus")),
+        (LightingEffect.Static, L("Statisch (alle Tasten)")),
+        (LightingEffect.Breathing, L("Atmen (alle Tasten)")),
+        (LightingEffect.Customize, L("Ausgewählte Tasten")),
+        (LightingEffect.Trigger, L("Trigger (beim Drücken)")),
+        (LightingEffect.Explosion, L("Explosion (beim Drücken)")),
     };
 
     private static readonly Brush KeyOn = new SolidColorBrush(Color.FromRgb(0xE5, 0x48, 0x4D));
@@ -58,20 +59,18 @@ public partial class LightingView : UserControl
         // übrigen Steuerelemente noch nicht → bis zum Ende des Konstruktors keine Änderungen verarbeiten.
         _loading = true;
         InitializeComponent();
+        UiTranslator.Apply(this);
 
         foreach (var (_, name) in Effects) EffectBox.Items.Add(name);
-        foreach (var g in Z10KeyLayout.Groups)
+        BuildGroupButtons();
+        state.KeyboardLayoutChanged += () => Dispatcher.BeginInvoke(() =>
         {
-            var b = new Button { Content = g.Name, Margin = new Thickness(0, 0, 8, 8), Padding = new Thickness(12, 6, 12, 6), Tag = g };
-            b.Click += Group_Click;
-            GroupPanel.Children.Add(b);
-        }
-        var none = new Button { Content = "Keine", Margin = new Thickness(0, 0, 8, 8), Padding = new Thickness(12, 6, 12, 6) };
-        none.Click += (_, _) => SetKeys(Array.Empty<int>());
-        GroupPanel.Children.Add(none);
-        var invert = new Button { Content = "Umkehren", Margin = new Thickness(0, 0, 8, 8), Padding = new Thickness(12, 6, 12, 6) };
-        invert.Click += (_, _) => SetKeys(Z10KeyLayout.AllLit.Except(_config.Keys));
-        GroupPanel.Children.Add(invert);
+            KeyCanvas.Children.Clear();
+            _keys.Clear();
+            BuildGroupButtons();
+            BuildKeyboard();
+            Refresh();
+        });
 
         foreach (var (name, hex) in Presets)
         {
@@ -79,7 +78,7 @@ public partial class LightingView : UserControl
             var b = new Button
             {
                 Width = 30, Height = 30, MinHeight = 30, Padding = new Thickness(0), Margin = new Thickness(0, 0, 6, 6),
-                Background = new SolidColorBrush(c), ToolTip = $"{name} ({hex})", Tag = hex,
+                Background = new SolidColorBrush(c), ToolTip = $"{L(name)} ({hex})", Tag = hex,
             };
             b.Click += (_, _) => SetColor(hex);
             PresetPanel.Children.Add(b);
@@ -102,8 +101,8 @@ public partial class LightingView : UserControl
         _loading = false;
         ShowConfig();
         StatusText.Text = state.Settings.Lighting is null
-            ? "Noch nicht von der Tastatur gelesen."
-            : "Zuletzt bearbeitete Einstellungen – mit „Von Tastatur lesen“ den aktuellen Stand holen.";
+            ? L("Noch nicht von der Tastatur gelesen.")
+            : L("Zuletzt bearbeitete Einstellungen – mit „Von Tastatur lesen“ den aktuellen Stand holen.");
     }
 
     /// <summary>
@@ -111,6 +110,23 @@ public partial class LightingView : UserControl
     /// wird nur noch auf Knopfdruck gelesen.
     /// </summary>
     public void OnShown() { }
+
+    private void BuildGroupButtons()
+    {
+        GroupPanel.Children.Clear();
+        foreach (var g in Z10KeyLayout.Groups)
+        {
+            var b = new Button { Content = g.Name, Margin = new Thickness(0, 0, 8, 8), Padding = new Thickness(12, 6, 12, 6), Tag = g };
+            b.Click += Group_Click;
+            GroupPanel.Children.Add(b);
+        }
+        var none = new Button { Content = L("Keine"), Margin = new Thickness(0, 0, 8, 8), Padding = new Thickness(12, 6, 12, 6) };
+        none.Click += (_, _) => SetKeys(Array.Empty<int>());
+        GroupPanel.Children.Add(none);
+        var invert = new Button { Content = L("Umkehren"), Margin = new Thickness(0, 0, 8, 8), Padding = new Thickness(12, 6, 12, 6) };
+        invert.Click += (_, _) => SetKeys(Z10KeyLayout.AllLit.Except(_config.Keys));
+        GroupPanel.Children.Add(invert);
+    }
 
     private void BuildKeyboard()
     {
@@ -135,7 +151,7 @@ public partial class LightingView : UserControl
                 Background = KeyOff,
                 Child = text,
                 Tag = k,
-                ToolTip = k.HasLed ? $"{(k.Label == "" ? "Leertaste" : k.Label)} · Position {k.Position}" : $"{k.Label} · keine LED",
+                ToolTip = k.HasLed ? $"{(k.Label == "" ? L("Leertaste") : k.Label)} · " + L("Position {0}", k.Position) : $"{k.Label} · " + L("keine LED"),
                 Cursor = k.HasLed ? Cursors.Hand : Cursors.Arrow,
             };
             if (!k.HasLed)
@@ -155,7 +171,7 @@ public partial class LightingView : UserControl
             Canvas.SetTop(border, k.Y * Unit + 2);
             KeyCanvas.Children.Add(border);
         }
-        var eLabel = new TextBlock { Text = "E-Tasten", Foreground = KeyOffText, FontSize = 12 };
+        var eLabel = new TextBlock { Text = L("E-Tasten"), Foreground = KeyOffText, FontSize = 12 };
         Canvas.SetLeft(eLabel, 7 * 1.25 * Unit + 8);
         Canvas.SetTop(eLabel, Unit / 2 - 8);
         KeyCanvas.Children.Add(eLabel);
@@ -192,14 +208,14 @@ public partial class LightingView : UserControl
             border.BorderBrush = !custom && selected.Contains(pos) ? Brushes.White : KeyLine;
             border.Opacity = custom || _config.Effect == LightingEffect.Off ? 1 : 0.75;
         }
-        CountText.Text = $"{selected.Count(p => _keys.ContainsKey(p))} von {_keys.Count} Tasten ausgewählt";
+        CountText.Text = L("{0} von {1} Tasten ausgewählt", selected.Count(p => _keys.ContainsKey(p)), _keys.Count);
         ModeHint.Text = custom
-            ? "Nur die ausgewählten Tasten leuchten."
-            : "Die Auswahl wirkt nur beim Effekt „Ausgewählte Tasten“ (weiß umrandet). Ein Klick auf eine Taste wechselt dorthin.";
+            ? L("Nur die ausgewählten Tasten leuchten.")
+            : L("Die Auswahl wirkt nur beim Effekt „Ausgewählte Tasten“ (weiß umrandet). Ein Klick auf eine Taste wechselt dorthin.");
         ReadButton.IsEnabled = WriteButton.IsEnabled = !_busy;
         EffectBox.IsEnabled = GroupPanel.IsEnabled = KeyCanvas.IsEnabled = !_busy;
         RSlider.IsEnabled = GSlider.IsEnabled = BSlider.IsEnabled = HexBox.IsEnabled = PresetPanel.IsEnabled = !_busy;
-        WriteButton.Content = _dirty ? "Auf Tastatur schreiben •" : "Auf Tastatur schreiben";
+        WriteButton.Content = L("Auf Tastatur schreiben") + (_dirty ? " •" : "");
     }
 
     private void ShowColor()
@@ -283,7 +299,7 @@ public partial class LightingView : UserControl
             await _state.Engine.RunDeviceJob(dev => { Z10Lighting.PreviewColor(dev, color); return true; }, null);
         }
         catch (InvalidOperationException) { _pendingPreview ??= color; _previewTimer.Start(); }
-        catch (Exception ex) { StatusText.Text = "Vorschau fehlgeschlagen: " + Describe(ex); }
+        catch (Exception ex) { StatusText.Text = L("Vorschau fehlgeschlagen:") + " " + Describe(ex); }
     }
 
     private void Changed()
@@ -343,17 +359,17 @@ public partial class LightingView : UserControl
     {
         if (_busy) return;
         _busy = true;
-        StatusText.Text = "Lese von der Tastatur …";
+        StatusText.Text = L("Lese von der Tastatur …");
         Refresh();
         try
         {
-            var state = await _state.Engine.RunDeviceJob(Z10Lighting.Read, "Lese Beleuchtung …");
-            ApplyState(state, "Gelesen");
+            var state = await _state.Engine.RunDeviceJob(Z10Lighting.Read, L("Lese Beleuchtung …"));
+            ApplyState(state, L("Gelesen"));
             _dirty = false;
         }
         catch (Exception ex)
         {
-            StatusText.Text = "Lesen fehlgeschlagen: " + Describe(ex);
+            StatusText.Text = L("Lesen fehlgeschlagen:") + " " + Describe(ex);
         }
         finally
         {
@@ -372,13 +388,13 @@ public partial class LightingView : UserControl
         try
         {
             var state = await _state.Engine.RunDeviceJob(dev => Z10Lighting.Write(dev, config, progress),
-                "Beleuchtung wird\ngespeichert …");
-            ApplyState(state, "Gespeichert");
+                L("Beleuchtung wird\ngespeichert …"));
+            ApplyState(state, L("Gespeichert"));
             _dirty = false;
         }
         catch (Exception ex)
         {
-            StatusText.Text = "Schreiben fehlgeschlagen: " + Describe(ex);
+            StatusText.Text = L("Schreiben fehlgeschlagen:") + " " + Describe(ex);
         }
         finally
         {
@@ -399,7 +415,7 @@ public partial class LightingView : UserControl
         _state.Settings.Lighting = _config.Clone();
         _state.SaveSettings();
         ShowConfig();
-        StatusText.Text = $"{verb} · Profil {state.Profile} · {DateTime.Now:HH:mm:ss}";
+        StatusText.Text = $"{verb} · " + L("Profil {0}", state.Profile) + $" · {DateTime.Now:HH:mm:ss}";
     }
 
     private static string Describe(Exception ex) =>

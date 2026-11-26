@@ -9,6 +9,7 @@ using System.Windows.Threading;
 using Z10.Core.Rendering;
 using Z10.Core.Sensors;
 using Z10.Core.Storage;
+using static Z10.Core.Localization.Loc;
 
 namespace Z10.App;
 
@@ -24,6 +25,7 @@ public partial class DeviceView : UserControl
     {
         _state = state;
         InitializeComponent();
+        UiTranslator.Apply(this);
 
         var s = _state.Settings;
         BrightnessSlider.Value = s.Brightness;
@@ -41,13 +43,29 @@ public partial class DeviceView : UserControl
         Refresh();
     }
 
+    /// <summary>LibreHardwareMonitor nutzt für Register- und SMBus-Zugriffe den Treiber PawnIO (früher WinRing0).</summary>
+    private static readonly bool PawnIoInstalled = CheckPawnIo();
+
+    private static bool CheckPawnIo()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\PawnIO");
+            return key is not null;
+        }
+        catch (Exception) { return true; }   // im Zweifel keine Warnung
+    }
+
     private void Refresh()
     {
         DeviceInfo.Text = _state.Engine.DeviceInfo ?? "–";
         DeviceStatus.Text = _state.Engine.StatusText;
-        var err = _state.Sensors.Error;
+        var err = _state.Sensors.Error is string e ? L("Sensorfehler:") + " " + e : null;
+        if (!PawnIoInstalled)
+            err = (err is null ? "" : err + Environment.NewLine)
+                + L("Der Treiber PawnIO ist nicht installiert – ohne ihn fehlen viele CPU- und Mainboard-Werte. Download: github.com/namazso/PawnIO.Setup");
         SensorError.Visibility = err is null ? Visibility.Collapsed : Visibility.Visible;
-        SensorError.Text = err is null ? "" : "Sensorfehler: " + err;
+        SensorError.Text = err ?? "";
         UpdateCustomResult();
         if (!IsVisible) return;
 
@@ -84,8 +102,8 @@ public partial class DeviceView : UserControl
 
     private void UpdateBacklightLabels()
     {
-        BrightnessValue.Text = $"Stufe {(int)BrightnessSlider.Value} von 5";
-        ContrastValue.Text = $"Stufe {(int)ContrastSlider.Value} von 5";
+        BrightnessValue.Text = L("Stufe {0} von 5", (int)BrightnessSlider.Value);
+        ContrastValue.Text = L("Stufe {0} von 5", (int)ContrastSlider.Value);
     }
 
     // ---------- Eigene Sensoren ----------
@@ -114,38 +132,38 @@ public partial class DeviceView : UserControl
         c.Key = Regex.Replace(CustomKey.Text.Trim().ToLowerInvariant(), "[^a-z0-9_-]", "");
         c.Unit = CustomUnit.Text;
         c.Formula = CustomFormula.Text;
-        CustomSaved.Text = "ungespeichert";
+        CustomSaved.Text = L("ungespeichert");
         UpdateCustomResult();
     }
 
     private void UpdateCustomResult()
     {
         if (SelectedCustom is not CustomSensor c) { CustomResult.Text = ""; return; }
-        if (string.IsNullOrEmpty(c.Key)) { CustomResult.Text = "Bitte einen Kurznamen vergeben (a–z, 0–9, _ und -)."; return; }
-        if (_custom.Count(x => x.Key == c.Key) > 1) { CustomResult.Text = $"Kurzname „{c.Key}“ ist doppelt."; return; }
-        if (!Formula.TryParse(c.Formula, out var f, out var err)) { CustomResult.Text = "Fehler: " + err; return; }
+        if (string.IsNullOrEmpty(c.Key)) { CustomResult.Text = L("Bitte einen Kurznamen vergeben (a–z, 0–9, _ und -)."); return; }
+        if (_custom.Count(x => x.Key == c.Key) > 1) { CustomResult.Text = L("Kurzname „{0}“ ist doppelt.", c.Key); return; }
+        if (!Formula.TryParse(c.Formula, out var f, out var err)) { CustomResult.Text = L("Fehler:") + " " + err; return; }
         var missing = f!.SensorRefs.Where(r => _state.Sensors.Find(r) is null && !r.StartsWith(SensorHub.CustomPrefix)).ToList();
         var value = f.Evaluate(_state.Sensors.GetValue);
-        var text = value is double v ? $"Ergebnis: {v.ToString("0.##", CultureInfo.CurrentCulture)} {c.Unit}".TrimEnd() : "Ergebnis: kein Wert";
-        if (missing.Count > 0) text += " · nicht gefunden: " + string.Join(", ", missing);
-        CustomResult.Text = text + $"{Environment.NewLine}Verwenden als Sensor: {c.Id}";
+        var text = value is double v ? (L("Ergebnis:") + $" {v.ToString("0.##", CultureInfo.CurrentCulture)} {c.Unit}").TrimEnd() : L("Ergebnis: kein Wert");
+        if (missing.Count > 0) text += " · " + L("nicht gefunden:") + " " + string.Join(", ", missing);
+        CustomResult.Text = text + Environment.NewLine + L("Verwenden als Sensor:") + " " + c.Id;
     }
 
     private void CustomAdd_Click(object sender, RoutedEventArgs e)
     {
         int n = 1;
         while (_custom.Any(c => c.Key == $"sensor{n}")) n++;
-        var c = new CustomSensor { Key = $"sensor{n}", Name = $"Eigener Sensor {n}", Formula = "max([auto:cpu/Temperature/*], [auto:gpu/Temperature/*])", Unit = "°C" };
+        var c = new CustomSensor { Key = $"sensor{n}", Name = L("Eigener Sensor {0}", n), Formula = "max([auto:cpu/Temperature/*], [auto:gpu/Temperature/*])", Unit = "°C" };
         _custom.Add(c);
         CustomList.SelectedItem = c;
-        CustomSaved.Text = "ungespeichert";
+        CustomSaved.Text = L("ungespeichert");
     }
 
     private void CustomDelete_Click(object sender, RoutedEventArgs e)
     {
         if (SelectedCustom is not CustomSensor c) return;
         _custom.Remove(c);
-        CustomSaved.Text = "ungespeichert";
+        CustomSaved.Text = L("ungespeichert");
     }
 
     private void InsertId_Click(object sender, RoutedEventArgs e)
@@ -163,7 +181,7 @@ public partial class DeviceView : UserControl
         var keys = _custom.Select(c => c.Key).ToList();
         if (keys.Any(string.IsNullOrEmpty) || keys.Distinct().Count() != keys.Count)
         {
-            MessageBox.Show("Jeder eigene Sensor braucht einen eindeutigen Kurznamen.", "Eigene Sensoren",
+            MessageBox.Show(L("Jeder eigene Sensor braucht einen eindeutigen Kurznamen."), L("Eigene Sensoren"),
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
@@ -171,7 +189,7 @@ public partial class DeviceView : UserControl
         _state.SaveSettings();
         CustomList.Items.Refresh();
         var errors = _state.Sensors.CustomErrors;
-        CustomSaved.Text = errors.Count == 0 ? "gespeichert" : $"gespeichert · {errors.Count} Formel(n) fehlerhaft";
+        CustomSaved.Text = errors.Count == 0 ? L("gespeichert") : L("gespeichert · {0} Formel(n) fehlerhaft", errors.Count);
     }
 
     private sealed record Row(string Hardware, string Name, string Type, string ValueText, string Id);

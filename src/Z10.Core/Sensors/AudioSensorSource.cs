@@ -1,3 +1,4 @@
+using static Z10.Core.Localization.Loc;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
@@ -25,10 +26,10 @@ public sealed class AudioSensorSource : SensorSourceBase
         try
         {
             enumerator = (IMMDeviceEnumerator)new MMDeviceEnumeratorCom();
-            AddDefault(enumerator, EDataFlow.Render, DefaultOutVolume, DefaultOutMute, "Standard-Wiedergabegerät", list);
-            AddDefault(enumerator, EDataFlow.Capture, DefaultInVolume, DefaultInMute, "Standard-Aufnahmegerät", list);
-            AddAll(enumerator, EDataFlow.Render, "out", "Wiedergabe", list);
-            AddAll(enumerator, EDataFlow.Capture, "in", "Aufnahme", list);
+            AddDefault(enumerator, EDataFlow.Render, DefaultOutVolume, DefaultOutMute, L("Standard-Wiedergabegerät"), list);
+            AddDefault(enumerator, EDataFlow.Capture, DefaultInVolume, DefaultInMute, L("Standard-Aufnahmegerät"), list);
+            AddAll(enumerator, EDataFlow.Render, "out", L("Wiedergabe"), list);
+            AddAll(enumerator, EDataFlow.Capture, "in", L("Aufnahme"), list);
         }
         finally
         {
@@ -44,14 +45,14 @@ public sealed class AudioSensorSource : SensorSourceBase
         {
             if (en.GetDefaultAudioEndpoint(flow, ERole.Multimedia, out dev) != 0 || dev is null)
             {
-                list.Add(new SensorInfo(volId, label + " (keins)", "audio", "Lautstärke", "Level", "%", null));
-                list.Add(new SensorInfo(muteId, label + " (keins)", "audio", "Stumm", "Control", "", null));
+                list.Add(new SensorInfo(volId, label + " " + L("(keins)"), "audio", L("Lautstärke"), "Level", "%", null));
+                list.Add(new SensorInfo(muteId, label + " " + L("(keins)"), "audio", L("Stumm"), "Control", "", null));
                 return;
             }
             var (vol, mute) = ReadVolume(dev);
             var name = FriendlyName(dev) ?? label;
-            list.Add(new SensorInfo(volId, $"{label} · {name}", "audio", "Lautstärke", "Level", "%", vol));
-            list.Add(new SensorInfo(muteId, $"{label} · {name}", "audio", "Stumm", "Control", "", mute));
+            list.Add(new SensorInfo(volId, $"{label} · {name}", "audio", L("Lautstärke"), "Level", "%", vol));
+            list.Add(new SensorInfo(muteId, $"{label} · {name}", "audio", L("Stumm"), "Control", "", mute));
         }
         catch (COMException) { }
         finally { Release(dev); }
@@ -70,7 +71,7 @@ public sealed class AudioSensorSource : SensorSourceBase
                 try
                 {
                     if (coll.Item(i, out dev) != 0 || dev is null) continue;
-                    var name = FriendlyName(dev) ?? $"Gerät {i + 1}";
+                    var name = FriendlyName(dev) ?? L("Gerät {0}", i + 1);
                     var (vol, mute) = ReadVolume(dev);
                     var slug = Slug(name);
                     list.Add(new SensorInfo($"/audio/{prefix}/{slug}/volume", $"{label} · {name}", "audio", "Lautstärke", "Level", "%", vol));
