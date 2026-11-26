@@ -6,33 +6,39 @@ using Microsoft.Win32.SafeHandles;
 namespace Z10.Core.Device;
 
 /// <summary>
-/// Tastenereignisse der E-Tasten. Die Tastatur meldet sie als Input-Report 9 auf der Vendor-Collection
-/// (Usage Page 0xFF00):  09 E2 0F &lt;Taste&gt; 03 &lt;1 = gedrückt, 0 = losgelassen&gt; 00 00 00
-/// Am Gerät ermittelt: E6 = 0x05, E7 = 0x07.
+/// Tastenereignisse. Die Tastatur meldet Tasten als Input-Report 9 auf der Vendor-Collection (Usage Page 0xFF00):
+///   09 E2 &lt;Zeile&gt; &lt;Spalte&gt; 03 &lt;1 = gedrückt, 0 = losgelassen&gt; 00 00 00
+/// Zeile × 8 + Spalte ist die Matrixposition – dieselbe Nummerierung wie in der Beleuchtungsmaske
+/// (E6 = 0F/05 = 125, E7 = 0F/07 = 127). Die Firmware meldet so nicht nur E-Tasten, sondern auch normale Tasten
+/// (z. B. Pfeil rechts = 0C/05) – deshalb muss die Zeile mit ausgewertet werden.
 /// </summary>
 public static class Z10Keys
 {
     public const ushort EventUsagePage = 0xFF00;
-    public const byte E6 = 0x05;
-    public const byte E7 = 0x07;
 
+    /// <summary>Matrixpositionen der E-Tasten.</summary>
+    public const byte E6 = 125;
+    public const byte E7 = 127;
+
+    /// <param name="Code">Matrixposition (Zeile × 8 + Spalte).</param>
     public readonly record struct KeyEvent(byte Code, bool Pressed)
     {
         public string Name => KeyName(Code);
+        public bool IsEKey => Array.IndexOf(Z10KeyLayout.EKeyPositions, (int)Code) >= 0;
     }
 
-    public static string KeyName(byte code) => code switch
+    public static string KeyName(byte code)
     {
-        E6 => "E6",
-        E7 => "E7",
-        _ => $"Taste 0x{code:X2}",
-    };
+        int e = Array.IndexOf(Z10KeyLayout.EKeyPositions, (int)code);
+        return e >= 0 ? $"E{e + 1}" : $"Taste Pos. {code}";
+    }
 
     /// <summary>Wertet einen Input-Report aus (inkl. Report-ID im ersten Byte). null = kein Tastenereignis.</summary>
     public static KeyEvent? Parse(ReadOnlySpan<byte> report)
     {
         if (report.Length < 6 || report[0] != 0x09 || report[1] != 0xE2 || report[4] != 0x03) return null;
-        return new KeyEvent(report[3], report[5] == 1);
+        if (report[2] > 15 || report[3] > 7) return null;
+        return new KeyEvent((byte)(report[2] * 8 + report[3]), report[5] == 1);
     }
 }
 

@@ -142,7 +142,8 @@ public sealed class AppletEngine : IDisposable
     /// <summary>Führt die eingestellte Aktion einer E-Taste aus (nur beim Drücken, nicht beim Loslassen).</summary>
     public void HandleKey(Device.Z10Keys.KeyEvent key)
     {
-        if (!key.Pressed || !_settings.KeysEnabled) return;
+        // Die Firmware meldet auch normale Tasten – die werden bewusst gar nicht ausgewertet oder angezeigt
+        if (!key.Pressed || !key.IsEKey || !_settings.KeysEnabled) return;
         var action = key.Code switch
         {
             Device.Z10Keys.E6 => _settings.E6Action,

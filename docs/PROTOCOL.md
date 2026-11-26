@@ -46,17 +46,21 @@ Kontrast: Stufe 1..5 → 0x00, 0x0C, 0x18, 0x24, 0x30
 Helligkeit: Stufe 1..5 → 0..4
 ```
 
-Wirkt sofort und wird nicht dauerhaft gespeichert. Die Farbe des Displays wird nur an der Tastatur mit FN umgeschaltet.
+Wirkt sofort und wird nicht dauerhaft gespeichert. Die Farbe des Displays steht im Profilblock (Bytes 7..9, siehe Tastenbeleuchtung).
 
 ## Tastenereignisse (E-Tasten)
 
 Kommen als **Input-Report 9** über die Collection mit Usage Page `0xFF00` (Interface 2, Interrupt-Endpoint `0x83`):
 
 ```
-09 E2 0F <Taste> 03 <Zustand> 00 00 00
-Taste:   0x05 = E6, 0x07 = E7
-Zustand: 01 = gedrückt, 00 = losgelassen
+09 E2 <Zeile> <Spalte> 03 <Zustand> 00 00 00
+Position: Zeile × 8 + Spalte (wie in der Beleuchtungsmaske)
+E1..E7:   73, 74, 76, 78, 80, 125, 127   (E6 = 0F/05, E7 = 0F/07)
+Zustand:  01 = gedrückt, 00 = losgelassen
 ```
+
+Die Firmware meldet so auch normale Tasten (z. B. Pfeil rechts = `0C/05`, Taste 7 = `05/07`). Wer nur die Spalte
+auswertet, schaltet also auch bei diesen Tasten um – die Zeile muss geprüft werden.
 
 Nach dem Loslassen folgt noch ein leerer Report 1 (`01 00 …`). Unter Windows lässt sich die Collection ohne Treiber mit `ReadFile` lesen.
 Während die Display-Seiten geschrieben werden, quittiert die Tastatur jede Seite mit `09 00 00 21 …`.

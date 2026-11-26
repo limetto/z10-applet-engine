@@ -461,6 +461,12 @@ var tests = new List<(string Name, Action Body)>
         var e7up = Z10Keys.Parse(R(0x09, 0xE2, 0x0F, 0x07, 0x03, 0x00, 0, 0, 0));
         Eq(Z10Keys.E7, e7up?.Code); Eq(false, e7up?.Pressed);
         Eq(null, Z10Keys.Parse(R(0x09, 0x00, 0x00, 0x21, 0, 0, 0, 0, 0)));   // Quittung für Display-Seiten
+        // Normale Tasten mit derselben Spalte (Pfeil rechts 0C/05, Taste 7 05/07) sind keine E-Tasten
+        var right = Z10Keys.Parse(R(0x09, 0xE2, 0x0C, 0x05, 0x03, 0x01, 0, 0, 0));
+        Eq((byte)101, right?.Code); Eq(false, right?.IsEKey);
+        var seven = Z10Keys.Parse(R(0x09, 0xE2, 0x05, 0x07, 0x03, 0x01, 0, 0, 0));
+        Eq(false, seven?.IsEKey);
+        Eq("E1", Z10Keys.KeyName(73));
         Eq(null, Z10Keys.Parse(R(0x01, 0, 0, 0, 0, 0, 0, 0)));
 
         var dev = new FakeDevice();
@@ -476,6 +482,10 @@ var tests = new List<(string Name, Action Body)>
         Eq("GPU", e.Current?.Name);
         e.HandleKey(e6!.Value); e.Tick(t.AddSeconds(0.6));
         Eq("CPU", e.Current?.Name);
+        Eq("E6", e.LastKey);
+        var before = e.Current?.Name;
+        e.HandleKey(Z10Keys.Parse(R(0x09, 0xE2, 0x0C, 0x05, 0x03, 0x01, 0, 0, 0))!.Value);   // Pfeil rechts
+        Eq(before, e.Current?.Name);
         Eq("E6", e.LastKey);
         settings.E6Action = KeyAction.TogglePause;
         e.HandleKey(e6!.Value);
