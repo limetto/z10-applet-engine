@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <Grid Margin="20">
     <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="420"/>
+      <ColumnDefinition Width="360"/>
       <ColumnDefinition Width="20"/>
       <ColumnDefinition Width="*"/>
     </Grid.ColumnDefinitions>
@@ -45,68 +45,10 @@
           <Slider x:Name="ContrastSlider" Minimum="1" Maximum="5" TickFrequency="1" IsSnapToTickEnabled="True" TickPlacement="BottomRight" ValueChanged="Backlight_Changed"/>
           <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0" Text="Die Farbe des Displays stellst du unter „Beleuchtung“ ein."/>
 
-          <TextBlock Text="Verhalten" Style="{StaticResource H2}" Margin="0,20,0,4"/>
-          <TextBlock Text="Pause zwischen Display-Seiten" Style="{StaticResource Label}"/>
-          <ComboBox x:Name="DelayBox" SelectionChanged="Delay_Changed"/>
-          <TextBlock Text="Sensoren abfragen alle" Style="{StaticResource Label}"/>
-          <ComboBox x:Name="SensorIntervalBox" SelectionChanged="SensorInterval_Changed"/>
-          <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0" TextWrapping="Wrap"
-                     Text="Häufiger abgefragt wird nur die Hardware, deren Sensoren gerade ein Applet braucht; alles andere alle 5 Sekunden. Manche Werte (z. B. Mainboard-Temperaturen) ändern sich in der Hardware selbst nur etwa jede Sekunde. Verläufe werden beim Umstellen neu begonnen."/>
-          <CheckBox x:Name="ReleaseOnExitBox" Content="Beim Beenden Display an die Tastatur zurückgeben" Click="Behavior_Click" Margin="0,12,0,4"/>
-          <CheckBox x:Name="BootBox" Content="Startanimation (auf der Tastatur und im Startfenster)" Click="Behavior_Click"/>
-          <CheckBox x:Name="AutoStartBox" Content="Mit Windows starten (über die Aufgabenplanung, ohne UAC-Abfrage)" Click="AutoStart_Click"/>
-
-          <TextBlock Text="Bildschirmschoner" Style="{StaticResource H2}" Margin="0,20,0,4"/>
-          <CheckBox x:Name="SaverBox" Content="Bildschirmschoner auf dem Display" Click="Saver_Changed"/>
-          <Grid Margin="0,4,0,0">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*"/>
-              <ColumnDefinition Width="12"/>
-              <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel>
-              <TextBlock Text="Nach" Style="{StaticResource Label}"/>
-              <ComboBox x:Name="SaverMinutesBox" SelectionChanged="Saver_Changed"/>
-            </StackPanel>
-            <StackPanel Grid.Column="2">
-              <TextBlock Text="Motiv" Style="{StaticResource Label}"/>
-              <ComboBox x:Name="SaverKindBox" SelectionChanged="Saver_Changed"/>
-            </StackPanel>
-          </Grid>
-          <CheckBox x:Name="SaverMouseBox" Content="Mausbewegungen zählen auch als Eingabe" Click="Saver_Changed" Margin="0,8,0,0"/>
-          <DockPanel Margin="0,8,0,0">
-            <Button DockPanel.Dock="Left" Content="Vorschau (10 s)" Click="SaverPreview_Click"/>
-            <TextBlock Style="{StaticResource Hint}" Margin="10,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap"
-                       Text="Startet, wenn so lange keine Taste gedrückt wurde. Der erste Tastendruck beendet ihn (E-Tasten schalten dabei nicht weiter)."/>
-          </DockPanel>
-
-          <TextBlock Text="Tasten E6 / E7" Style="{StaticResource H2}" Margin="0,20,0,4"/>
-          <CheckBox x:Name="KeysBox" Content="E-Tasten auswerten" Click="Keys_Changed"/>
-          <Grid Margin="0,4,0,0">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="40"/>
-              <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-              <RowDefinition/>
-              <RowDefinition/>
-            </Grid.RowDefinitions>
-            <TextBlock Text="E6" VerticalAlignment="Center" FontWeight="SemiBold"/>
-            <ComboBox x:Name="E6Box" Grid.Column="1" Margin="0,4" SelectionChanged="Keys_Changed"/>
-            <TextBlock Grid.Row="1" Text="E7" VerticalAlignment="Center" FontWeight="SemiBold"/>
-            <ComboBox x:Name="E7Box" Grid.Row="1" Grid.Column="1" Margin="0,4" SelectionChanged="Keys_Changed"/>
-          </Grid>
-          <TextBlock x:Name="KeysStatus" Style="{StaticResource Hint}" Margin="0,4,0,0" Text="–"/>
-
-          <TextBlock Text="Weitere Datenquellen" Style="{StaticResource H2}" Margin="0,20,0,4"/>
-          <CheckBox x:Name="RtssBox" Content="RTSS (Framerate, Frametime)" Click="Sources_Click"/>
-          <TextBlock x:Name="RtssStatus" Style="{StaticResource Hint}" Margin="26,0,0,6" Text="–"/>
-          <CheckBox x:Name="AfterburnerBox" Content="MSI Afterburner (alle Überwachungswerte)" Click="Sources_Click"/>
-          <TextBlock x:Name="AfterburnerStatus" Style="{StaticResource Hint}" Margin="26,0,0,6" Text="–"/>
-          <CheckBox x:Name="AudioBox" Content="Lautstärke der Audiogeräte" Click="Sources_Click"/>
-          <TextBlock x:Name="AudioStatus" Style="{StaticResource Hint}" Margin="26,0,0,6" Text="–"/>
-          <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0"
-                     Text="Framerate gibt es nur, wenn der RivaTuner Statistics Server läuft. Er ist ein eigenes Programm (Symbol im Infobereich), das mit Afterburner installiert wird. Afterburner allein liefert keine FPS."/>
+          <Border Background="#1C2230" CornerRadius="8" Padding="12" Margin="0,20,0,0">
+            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource MutedBrush}"
+                       Text="Verhalten, Abfrageintervall, Bildschirmschoner, E-Tasten und weitere Datenquellen findest du unter „Optionen“."/>
+          </Border>
         </StackPanel>
       </ScrollViewer>
     </Border>
@@ -128,7 +70,7 @@
           <TextBox x:Name="FilterBox" TextChanged="Filter_Changed" ToolTip="Filter, z. B. temperature, load, fan"/>
         </DockPanel>
         <TextBlock DockPanel.Dock="Bottom" Style="{StaticResource Hint}" Margin="0,8,0,0"
-                   Text="Die Id kannst du im Layout-Editor als Sensor eintragen. Werte aktualisieren sich jede Sekunde."/>
+                   Text="Die Id kannst du im Layout-Editor als Sensor eintragen. Sensoren, die kein Applet benutzt, werden nur alle 5 Sekunden aufgefrischt."/>
         <DataGrid x:Name="SensorGrid">
           <DataGrid.Columns>
             <DataGridTextColumn Header="Hardware" Binding="{Binding Hardware}" Width="2*"/>

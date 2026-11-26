@@ -77,7 +77,7 @@
             <TextBlock Style="{StaticResource Hint}" VerticalAlignment="Center"
                        Text="160 × 32 px · gestrichelt: Grenzen der 8-Pixel-Zeilen"/>
           </DockPanel>
-          <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+          <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Focusable="False">
             <Border Background="#0B0B0C" CornerRadius="8" Padding="16" HorizontalAlignment="Left">
               <Grid x:Name="Surface" Background="Transparent" Focusable="True" Cursor="Cross"
                     MouseLeftButtonDown="Surface_MouseDown" MouseMove="Surface_MouseMove" MouseLeftButtonUp="Surface_MouseUp">

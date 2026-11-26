@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     private readonly AppletsView _applets;
     private readonly EditorView _editor;
     private readonly DeviceView _device;
+    private readonly OptionsView _options;
     private readonly LightingView _lighting;
     private readonly DispatcherTimer _statusTimer;
 
@@ -25,11 +26,13 @@ public partial class MainWindow : Window
         _applets = new AppletsView(state);
         _editor = new EditorView(state);
         _device = new DeviceView(state);
+        _options = new OptionsView(state);
         _lighting = new LightingView(state);
         _applets.EditRequested += OpenEditor;
         ContentHost.Children.Add(_applets);
         ContentHost.Children.Add(_editor);
         ContentHost.Children.Add(_device);
+        ContentHost.Children.Add(_options);
         ContentHost.Children.Add(_lighting);
         ShowView(_applets);
 
@@ -52,6 +55,7 @@ public partial class MainWindow : Window
         if (sender == NavApplets) ShowView(_applets);
         else if (sender == NavEditor) ShowView(_editor);
         else if (sender == NavLighting) ShowView(_lighting);
+        else if (sender == NavOptions) ShowView(_options);
         else ShowView(_device);
     }
 

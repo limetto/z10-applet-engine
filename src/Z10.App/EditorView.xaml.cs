@@ -211,6 +211,9 @@ public partial class EditorView : UserControl
         int px = (int)(p.X / _scale), py = (int)(p.Y / _scale);
         var hit = _layers.LastOrDefault(w => px >= w.X && px < w.X + Math.Max(1, w.W) && py >= w.Y && py < w.Y + Math.Max(1, w.H));
         Layers.SelectedItem = hit;
+        // Sonst holt sich der umgebende ScrollViewer beim Weiterreichen des Klicks den Fokus
+        // und die Pfeiltasten scrollen statt zu verschieben.
+        e.Handled = true;
         if (hit is null) return;
         _dragging = hit;
         _dragOffset = new Point(px - hit.X, py - hit.Y);
@@ -240,7 +243,10 @@ public partial class EditorView : UserControl
 
     private void Editor_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (!Surface.IsKeyboardFocused || Layers.SelectedItem is not Widget w) return;
+        if (Layers.SelectedItem is not Widget w) return;
+        // In Eingabefeldern und Auswahllisten behalten die Pfeiltasten ihre normale Funktion
+        if (Keyboard.FocusedElement is TextBoxBase or ComboBox or ComboBoxItem or Slider or PasswordBox) return;
+        if (Keyboard.FocusedElement is DependencyObject d && IsInside(d, PropsPanel)) return;
         bool resize = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
         int dx = e.Key == Key.Left ? -1 : e.Key == Key.Right ? 1 : 0;
         int dy = e.Key == Key.Up ? -1 : e.Key == Key.Down ? 1 : 0;
@@ -251,6 +257,13 @@ public partial class EditorView : UserControl
         RefreshGeometryBoxes();
         Changed();
         e.Handled = true;
+    }
+
+    private static bool IsInside(DependencyObject d, DependencyObject container)
+    {
+        for (var cur = d; cur is not null; cur = System.Windows.Media.VisualTreeHelper.GetParent(cur) ?? LogicalTreeHelper.GetParent(cur))
+            if (ReferenceEquals(cur, container)) return true;
+        return false;
     }
 
     // ---------- Ebenen ----------
