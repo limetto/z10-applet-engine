@@ -157,13 +157,11 @@ public static class Z10KeyLayout
         }
 
         // E-Tasten wie am Gerät: E1..E5 als Spalte links neben dem Hauptblock (E1 oben, ab der Zahlenreihe),
-        // E6/E7 oberhalb des Navigationsblocks links bzw. rechts
+        // E6/E7 links und rechts neben „Pfeil hoch“ (über Pfeil links bzw. Pfeil rechts)
         for (int i = 0; i < 5; i++)
-            keys.Add(new KeyDef($"E{i + 1}", EKeyPositions[i], 0, 3 + i));
-        keys.Add(new KeyDef("E6", EKeyPositions[5], MainOffset + 15.25, 0));
-        keys.Add(new KeyDef("E7", EKeyPositions[6], MainOffset + 17.25, 0));
+            keys.Add(new KeyDef($"E{i + 1}", EKeyPositions[i], 0, 1.5 + i));
 
-        double y = 1.5;
+        double y = 0;
         // Funktionsreihe
         K(0x29, 0, y);
         for (int i = 0; i < 4; i++) K((byte)(0x3A + i), 2 + i, y);
@@ -207,6 +205,8 @@ public static class Z10KeyLayout
         for (int i = 0; i < row4.Length; i++) K(row4[i], x0 + i, y);
         K(0xE5, 12.25, y, 2.75);
         K(0x52, 16.25, y);
+        keys.Add(new KeyDef("E6", EKeyPositions[5], MainOffset + 15.25, y));
+        keys.Add(new KeyDef("E7", EKeyPositions[6], MainOffset + 17.25, y));
         K(0x59, 18.5, y); K(0x5A, 19.5, y); K(0x5B, 20.5, y); K(0x58, 21.5, y, 1, 2);
 
         // unterste Reihe (Z10: Fn links statt Windows-Taste)
@@ -229,7 +229,7 @@ public static class Z10KeyLayout
         // Gruppen nach Lage, benannt nach der Beschriftung im gewählten Layout (z. B. AZERTY: ZQSD)
         var wasd = U(0x1A, 0x04, 0x16, 0x07);
         var qwer = U(0x14, 0x1A, 0x08, 0x15);
-        var main = lit.Where(k => k.Y >= 3 && k.X < MainOffset + 15 && !EKeyPositions.Contains(k.Position)).Select(k => k.Position);
+        var main = lit.Where(k => k.Y >= 1.5 && k.X < MainOffset + 15 && !EKeyPositions.Contains(k.Position)).Select(k => k.Position);
         var numpad = Enumerable.Range(0x53, 0x63 - 0x53 + 1).Select(u => PositionOf((byte)u));
         return new List<KeyGroup>
         {

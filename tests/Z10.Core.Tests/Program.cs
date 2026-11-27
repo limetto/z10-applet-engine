@@ -189,6 +189,27 @@ var tests = new List<(string Name, Action Body)>
         Eq(EngineState.Conflict, e.State);
         True(dev.Reports.Last()[2] == 0xFE, "nicht freigegeben");
     }),
+    ("Tastaturbild: keine Überlappungen, E6/E7 neben Pfeil hoch", () =>
+    {
+        foreach (var l in Z10KeyLayout.Layouts)
+        {
+            var keys = Z10KeyLayout.For(l.Id).Keys;
+            for (int i = 0; i < keys.Count; i++)
+                for (int j = i + 1; j < keys.Count; j++)
+                {
+                    var (a, b) = (keys[i], keys[j]);
+                    bool overlap = a.X < b.X + b.W - 0.01 && b.X < a.X + a.W - 0.01 && a.Y < b.Y + b.H - 0.01 && b.Y < a.Y + a.H - 0.01;
+                    True(!overlap, $"{l.Id}: {a.Label} überlappt {b.Label}");
+                }
+            var up = keys.First(k => k.Position == Z10KeyLayout.PositionOf(0x52));
+            var e6 = keys.First(k => k.Label == "E6");
+            var e7 = keys.First(k => k.Label == "E7");
+            Eq(up.Y, e6.Y); Eq(up.Y, e7.Y);
+            True(e6.X < up.X && e7.X > up.X, "E6/E7 nicht links/rechts von Pfeil hoch");
+            Eq(0.0, keys.Min(k => k.Y));
+        }
+    }),
+
     ("Medien: Position hochzählen, Texte, App-Namen", () =>
     {
         var t0 = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
