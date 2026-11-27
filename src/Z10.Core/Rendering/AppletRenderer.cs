@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Runtime.CompilerServices;
 using Z10.Core.Media;
 using Z10.Core.Model;
 using Z10.Core.Sensors;
@@ -32,7 +31,12 @@ public sealed class AppletRenderer
     public static readonly TimeSpan MarqueePause = TimeSpan.FromSeconds(1.5);
 
     private sealed class MarqueeState { public string Text = ""; public DateTime Start; }
-    private readonly ConditionalWeakTable<MediaWidget, MarqueeState> _marquee = new();
+
+    /// <summary>
+    /// Lauftext-Zustand je Applet und Baustein-Nummer – nicht je Objekt: Der Layout-Editor schickt der Engine jede
+    /// Sekunde eine frische Kopie des Applets, der Lauftext soll dabei nicht von vorn beginnen.
+    /// </summary>
+    private readonly Dictionary<string, MarqueeState> _marquee = new();
 
     /// <summary>Muss das Applet häufiger gezeichnet werden (animierte Grafik oder laufender Lauftext)?</summary>
     public bool NeedsFastRefresh(Applet applet, DateTime now) =>
@@ -64,8 +68,10 @@ public sealed class AppletRenderer
     public void Render(Applet applet, Framebuffer fb, DateTime now, bool blinkPhase = false)
     {
         fb.Clear();
-        foreach (var w in applet.Widgets)
+        for (int index = 0; index < applet.Widgets.Count; index++)
         {
+            var w = applet.Widgets[index];
+            _drawKey = applet.Id + "/" + index;
             // Normal direkt zeichnen, sonst auf eigener Ebene und dann pixelweise verrechnen
             var target = w.Blend == BlendMode.Normal ? fb : new Framebuffer();
             try
@@ -123,6 +129,8 @@ public sealed class AppletRenderer
         }
     }
 
+    private string _drawKey = "";
+
     private void DrawMedia(Framebuffer fb, MediaWidget m, DateTime now)
     {
         var text = MediaTextOf(m, now);
@@ -133,7 +141,15 @@ public sealed class AppletRenderer
             return;
         }
         // Lauftext: am Anfang kurz stehen, dann nach links laufen; der Anfang folgt mit Abstand
-        var st = _marquee.GetValue(m, _ => new MarqueeState());
+        MarqueeState st;
+        lock (_marquee)
+        {
+            if (!_marquee.TryGetValue(_drawKey, out st!))
+            {
+                if (_marquee.Count > 200) _marquee.Clear();
+                _marquee[_drawKey] = st = new MarqueeState();
+            }
+        }
         if (st.Text != text || now < st.Start) { st.Text = text; st.Start = now; }
         double speed = Math.Clamp(m.ScrollSpeed, 1, 200);
         int cycle = bmp.Width + MarqueeGap;

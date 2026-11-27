@@ -230,6 +230,11 @@ var tests = new List<(string Name, Action Body)>
         var f1 = Frame(t0);
         True(Frame(t0.AddSeconds(1)).Same(f1), "in der Pause am Anfang steht der Text");
         False(Frame(t0.AddSeconds(3)).Same(f1), "Text läuft nicht");
+        // Editor schickt jede Sekunde eine Kopie: Lauftext darf dadurch nicht neu starten
+        a.Id = "fest";
+        MonoBitmap FrameOfCopy(DateTime t) { var fb = new Framebuffer(); var copy = new Applet { Id = a.Id, Widgets = { w.Clone() } }; r.Render(copy, fb, t); return fb; }
+        var c0 = FrameOfCopy(t0.AddSeconds(10));
+        False(FrameOfCopy(t0.AddSeconds(13)).Same(c0), "Lauftext startet bei Kopien neu");
         for (int x = 40; x < 160; x++) for (int y = 0; y < 32; y++) if (Frame(t0.AddSeconds(3))[x, y]) throw new Exception("Lauftext ragt über den Rahmen");
 
         var icon = new Applet { Widgets = { new IconWidget { W = 8, H = 8, Icon = Icons.MediaStatus } } };
