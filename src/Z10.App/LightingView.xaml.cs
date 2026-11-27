@@ -176,10 +176,6 @@ public partial class LightingView : UserControl
             Canvas.SetTop(border, k.Y * Unit + 2);
             KeyCanvas.Children.Add(border);
         }
-        var eLabel = new TextBlock { Text = L("E-Tasten"), Foreground = KeyOffText, FontSize = 12 };
-        Canvas.SetLeft(eLabel, 7 * 1.25 * Unit + 8);
-        Canvas.SetTop(eLabel, Unit / 2 - 8);
-        KeyCanvas.Children.Add(eLabel);
     }
 
     private void ShowConfig()

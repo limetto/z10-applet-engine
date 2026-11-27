@@ -62,6 +62,9 @@ public static class Z10KeyLayout
     /// <summary>Alle Positionen mit LED.</summary>
     public static IReadOnlyList<int> AllLit => Keys.Where(k => k.HasLed).Select(k => k.Position).OrderBy(p => p).ToList();
 
+    /// <summary>Verschiebung des Hauptblocks nach rechts, um Platz für die E-Tasten-Spalte zu lassen.</summary>
+    public const double MainOffset = 1.5;
+
     public static double TotalWidth => Keys.Max(k => k.X + k.W);
     public static double TotalHeight => Keys.Max(k => k.Y + k.H);
 
@@ -150,12 +153,15 @@ public static class Z10KeyLayout
         {
             int pos = PositionOf(usage);
             if (pos < 0) throw new InvalidOperationException($"HID-Code 0x{usage:X2} fehlt in der Tastenbelegung.");
-            keys.Add(new KeyDef(labels.TryGetValue(usage, out var lab) ? lab : $"0x{usage:X2}", pos, x, y, w, h, led));
+            keys.Add(new KeyDef(labels.TryGetValue(usage, out var lab) ? lab : $"0x{usage:X2}", pos, x + MainOffset, y, w, h, led));
         }
 
-        // E-Tasten (eigene Zeile)
-        for (int i = 0; i < EKeyPositions.Length; i++)
-            keys.Add(new KeyDef($"E{i + 1}", EKeyPositions[i], i * 1.25, 0));
+        // E-Tasten wie am Gerät: E1..E5 als Spalte links neben dem Hauptblock (E1 oben, ab der Zahlenreihe),
+        // E6/E7 oberhalb des Navigationsblocks links bzw. rechts
+        for (int i = 0; i < 5; i++)
+            keys.Add(new KeyDef($"E{i + 1}", EKeyPositions[i], 0, 3 + i));
+        keys.Add(new KeyDef("E6", EKeyPositions[5], MainOffset + 15.25, 0));
+        keys.Add(new KeyDef("E7", EKeyPositions[6], MainOffset + 17.25, 0));
 
         double y = 1.5;
         // Funktionsreihe
@@ -223,7 +229,7 @@ public static class Z10KeyLayout
         // Gruppen nach Lage, benannt nach der Beschriftung im gewählten Layout (z. B. AZERTY: ZQSD)
         var wasd = U(0x1A, 0x04, 0x16, 0x07);
         var qwer = U(0x14, 0x1A, 0x08, 0x15);
-        var main = lit.Where(k => k.Y >= 3 && k.X < 15 && !EKeyPositions.Contains(k.Position)).Select(k => k.Position);
+        var main = lit.Where(k => k.Y >= 3 && k.X < MainOffset + 15 && !EKeyPositions.Contains(k.Position)).Select(k => k.Position);
         var numpad = Enumerable.Range(0x53, 0x63 - 0x53 + 1).Select(u => PositionOf((byte)u));
         return new List<KeyGroup>
         {
