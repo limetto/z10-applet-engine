@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Runtime.CompilerServices;
+using Z10.Core.Media;
 using Z10.Core.Model;
 using Z10.Core.Sensors;
 
@@ -21,6 +23,27 @@ public sealed class AppletRenderer
         Images is not null && applet.Widgets.OfType<IconWidget>().Any(i =>
             i.Icon.StartsWith(Icons.ImagePrefix, StringComparison.OrdinalIgnoreCase)
             && Images.Get(i.Icon[Icons.ImagePrefix.Length..])?.IsAnimated == true);
+
+    /// <summary>Quelle der Medienwiedergabe für Medien-Bausteine.</summary>
+    public IMediaProvider? Media { get; set; }
+
+    /// <summary>Lücke zwischen Ende und neuem Anfang eines Lauftexts (Pixel) und Pause am Anfang.</summary>
+    public const int MarqueeGap = 24;
+    public static readonly TimeSpan MarqueePause = TimeSpan.FromSeconds(1.5);
+
+    private sealed class MarqueeState { public string Text = ""; public DateTime Start; }
+    private readonly ConditionalWeakTable<MediaWidget, MarqueeState> _marquee = new();
+
+    /// <summary>Muss das Applet häufiger gezeichnet werden (animierte Grafik oder laufender Lauftext)?</summary>
+    public bool NeedsFastRefresh(Applet applet, DateTime now) =>
+        IsAnimated(applet) || applet.Widgets.OfType<MediaWidget>().Any(m => m.Scroll && _text.Render(MediaTextOf(m, now), m.Style).Width > m.W);
+
+    public string MediaTextOf(MediaWidget m, DateTime now)
+    {
+        var utc = now.Kind == DateTimeKind.Utc ? now : now.ToUniversalTime();
+        var text = MediaText.Get(Media?.Current, m.Field, utc);
+        return string.IsNullOrWhiteSpace(text) ? m.Placeholder : text;
+    }
 
     public AppletRenderer(ITextRasterizer text, ISensorSource sensors, SensorHistory history)
     {
@@ -89,10 +112,36 @@ public sealed class AppletRenderer
             case ShapeWidget sh:
                 DrawShape(fb, sh);
                 break;
+            case MediaWidget m:
+                DrawMedia(fb, m, now);
+                break;
             case IconWidget i:
-                fb.Blit(Icons.Get(i.Icon, Images, new DateTimeOffset(now).ToUnixTimeMilliseconds()), i.X, i.Y, i.X, i.Y, i.W, i.H);
+                var spec = i.Icon.Trim().Equals(Icons.MediaStatus, StringComparison.OrdinalIgnoreCase)
+                    ? Icons.ForMediaStatus(Media?.Current?.Status ?? MediaStatus.None) : i.Icon;
+                fb.Blit(Icons.Get(spec, Images, new DateTimeOffset(now).ToUnixTimeMilliseconds()), i.X, i.Y, i.X, i.Y, i.W, i.H);
                 break;
         }
+    }
+
+    private void DrawMedia(Framebuffer fb, MediaWidget m, DateTime now)
+    {
+        var text = MediaTextOf(m, now);
+        var bmp = _text.Render(text, m.Style);
+        if (!m.Scroll || bmp.Width <= m.W)
+        {
+            DrawText(fb, m, text, m.Style, m.Align);
+            return;
+        }
+        // Lauftext: am Anfang kurz stehen, dann nach links laufen; der Anfang folgt mit Abstand
+        var st = _marquee.GetValue(m, _ => new MarqueeState());
+        if (st.Text != text || now < st.Start) { st.Text = text; st.Start = now; }
+        double speed = Math.Clamp(m.ScrollSpeed, 1, 200);
+        int cycle = bmp.Width + MarqueeGap;
+        double cycleSec = MarqueePause.TotalSeconds + cycle / speed;
+        double t = (now - st.Start).TotalSeconds % cycleSec;
+        int off = t < MarqueePause.TotalSeconds ? 0 : (int)((t - MarqueePause.TotalSeconds) * speed);
+        fb.Blit(bmp, m.X - off, m.Y, m.X, m.Y, m.W, m.H);
+        fb.Blit(bmp, m.X - off + cycle, m.Y, m.X, m.Y, m.W, m.H);
     }
 
     private static void DrawShape(Framebuffer fb, ShapeWidget s)

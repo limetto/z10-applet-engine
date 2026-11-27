@@ -35,6 +35,7 @@
             <Button Content="Verlauf" Tag="graph" Click="AddWidget_Click" Margin="0,0,0,6"/>
             <Button Content="Uhr / Datum" Tag="clock" Click="AddWidget_Click" Margin="0,0,0,6"/>
             <Button Content="Symbol" Tag="icon" Click="AddWidget_Click" Margin="0,0,0,6"/>
+            <Button Content="Medien (Titel, Zeit …)" Tag="media" Click="AddWidget_Click" Margin="0,0,0,6"/>
             <UniformGrid Columns="3">
               <Button Content="Linie" Tag="line" Click="AddWidget_Click" Margin="0,0,3,0" ToolTip="Linie (auch waagerecht/senkrecht)"/>
               <Button Content="Rechteck" Tag="rect" Click="AddWidget_Click" Margin="3,0,3,0" ToolTip="Rechteck, leer oder gefüllt, auf Wunsch mit runden Ecken"/>

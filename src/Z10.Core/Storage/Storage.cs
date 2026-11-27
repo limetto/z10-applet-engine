@@ -63,6 +63,12 @@ public sealed class AppSettings
     public bool RtssEnabled { get; set; } = true;
     public bool AfterburnerEnabled { get; set; } = true;
     public bool AudioEnabled { get; set; } = true;
+
+    /// <summary>Medienwiedergabe (Titel, Fortschritt) von Windows auslesen.</summary>
+    public bool MediaEnabled { get; set; } = true;
+
+    /// <summary>Wiedergabe-Applet wurde bereits einmal ergänzt (nicht erneut anlegen, wenn gelöscht).</summary>
+    public bool MediaAppletAdded { get; set; }
     public List<CustomSensor> CustomSensors { get; set; } = new();
 
     /// <summary>Zuletzt bearbeitete Tastenbeleuchtung (wird nur auf Knopfdruck an die Tastatur geschrieben).</summary>

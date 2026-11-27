@@ -20,6 +20,9 @@ public sealed class Applet
     /// <summary>Bei aktivem Warnwert dieses Applet sofort anzeigen.</summary>
     public bool ShowOnWarning { get; set; }
 
+    /// <summary>Beim Durchwechseln nur zeigen, wenn gerade Medien abgespielt werden.</summary>
+    public bool OnlyWhenMediaPlaying { get; set; }
+
     public List<Widget> Widgets { get; set; } = new();
 
     public IEnumerable<string> SensorIds =>
@@ -71,6 +74,7 @@ public abstract class SensorBoundWidget : Widget, ISensorWidget
 [JsonDerivedType(typeof(ClockWidget), "clock")]
 [JsonDerivedType(typeof(IconWidget), "icon")]
 [JsonDerivedType(typeof(ShapeWidget), "shape")]
+[JsonDerivedType(typeof(MediaWidget), "media")]
 public abstract class Widget
 {
     public string Name { get; set; } = "";
@@ -188,4 +192,23 @@ public sealed class ShapeWidget : Widget
         ShapeKind.Ellipse => L("Oval"),
         _ => L("Rechteck"),
     };
+}
+
+/// <summary>Angaben zur laufenden Medienwiedergabe (Titel, Interpret, Zeit …), lange Texte auf Wunsch als Lauftext.</summary>
+public sealed class MediaWidget : Widget
+{
+    public Media.MediaField Field { get; set; } = Media.MediaField.ArtistTitle;
+    public TextStyle Style { get; set; } = new();
+    public TextAlign Align { get; set; }
+
+    /// <summary>Zu lange Texte durchlaufen lassen (sonst abgeschnitten).</summary>
+    public bool Scroll { get; set; } = true;
+
+    /// <summary>Laufgeschwindigkeit in Pixeln pro Sekunde.</summary>
+    public int ScrollSpeed { get; set; } = 20;
+
+    /// <summary>Text, wenn nichts läuft oder die App das Feld nicht liefert.</summary>
+    public string Placeholder { get; set; } = "";
+
+    public override string KindName => L("Medien");
 }

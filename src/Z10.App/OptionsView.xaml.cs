@@ -7,6 +7,7 @@ using System.Windows.Threading;
 using Z10.Core.Device;
 using Z10.Core.Localization;
 using Z10.Core.Rendering;
+using Z10.Core.Media;
 using Z10.Core.Sensors;
 using Z10.Core.Storage;
 using static Z10.Core.Localization.Loc;
@@ -52,6 +53,7 @@ public partial class OptionsView : UserControl
         RtssBox.IsChecked = s.RtssEnabled;
         AfterburnerBox.IsChecked = s.AfterburnerEnabled;
         AudioBox.IsChecked = s.AudioEnabled;
+        MediaBox.IsChecked = s.MediaEnabled;
 
         foreach (var m in SaverMinutes) SaverMinutesBox.Items.Add(m == 1 ? L("1 Minute") : L("{0} Minuten", m));
         foreach (var k in Enum.GetValues<ScreensaverKind>()) SaverKindBox.Items.Add(Screensavers.DisplayName(k));
@@ -104,6 +106,11 @@ public partial class OptionsView : UserControl
         AudioStatus.Text = !_state.Settings.AudioEnabled ? L("ausgeschaltet")
             : _state.Audio.Error is string ae ? L("Fehler:") + " " + ae
             : vol is double volPct ? L("Standardgerät:") + $" {volPct.ToString("0", c)} %{(muted ? " " + L("(stumm)") : "")} · " + L("Sensoren unter /audio/…") : L("kein Wiedergabegerät gefunden");
+        var media = _state.Media.Current;
+        MediaStatusText.Text = !_state.Settings.MediaEnabled ? L("ausgeschaltet")
+            : media is null ? (_state.Media.Error is string me ? L("Fehler:") + " " + me : L("keine Wiedergabe"))
+            : $"{media.App}: " + (media.IsPlaying ? L("spielt") : L("angehalten")) + " · "
+              + MediaText.Get(media, MediaField.ArtistTitle, DateTime.UtcNow) + " · " + L("Sensoren unter /media/…");
         KeysStatus.Text = !_state.Settings.KeysEnabled ? L("ausgeschaltet")
             : !_state.Keys.IsConnected ? L("Tastenkanal nicht verbunden")
             : _state.Engine.LastKey is string last ? L("bereit · zuletzt gedrückt: {0}", last) : L("bereit · drück E6 oder E7 zum Testen");
@@ -215,6 +222,7 @@ public partial class OptionsView : UserControl
         _state.Settings.RtssEnabled = RtssBox.IsChecked == true;
         _state.Settings.AfterburnerEnabled = AfterburnerBox.IsChecked == true;
         _state.Settings.AudioEnabled = AudioBox.IsChecked == true;
+        _state.Settings.MediaEnabled = MediaBox.IsChecked == true;
         _state.SaveSettings();
         Refresh();
     }

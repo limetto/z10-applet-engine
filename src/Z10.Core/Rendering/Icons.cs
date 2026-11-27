@@ -14,11 +14,22 @@ public static class Icons
     public static readonly IReadOnlyList<(string Category, string[] Names)> Categories = new[]
     {
         ("Hardware", new[] { "cpu", "gpu", "ram", "disk", "fan", "temp", "bolt", "plug", "battery", "monitor", "keyboard", "mouse", "gamepad", "net", "wifi" }),
-        ("Audio & Medien", new[] { "speaker", "speaker-mute", "mic", "mic-mute", "headphones", "music", "play", "pause", "stop" }),
+        ("Audio & Medien", new[] { "speaker", "speaker-mute", "mic", "mic-mute", "headphones", "music", "play", "pause", "stop", MediaStatus }),
         ("Status", new[] { "check", "cross", "warn", "info", "bell", "lock", "unlock", "gear", "clock", "up", "down", "left", "right" }),
         ("Wetter & Haus", new[] { "sun", "moon", "cloud", "rain", "snow", "house", "drop", "flame", "leaf", "car" }),
         ("Sonstiges", new[] { "heart", "star", "mail", "chart", "smile", "skull", "ghost", "invader" }),
         ("Groß (16 px)", new[] { "cpu-16", "fan-16", "temp-16", "speaker-16", "z10-16" }),
+    };
+
+    /// <summary>Wechselt je nach Medienwiedergabe zwischen „play“, „pause“ und „stop“.</summary>
+    public const string MediaStatus = "media-status";
+
+    /// <summary>Symbol für den Stand der Wiedergabe.</summary>
+    public static string ForMediaStatus(Media.MediaStatus status) => status switch
+    {
+        Media.MediaStatus.Playing => "play",
+        Media.MediaStatus.Paused => "pause",
+        _ => "stop",
     };
 
     private static readonly Dictionary<string, string[]> Art = new(StringComparer.OrdinalIgnoreCase)
@@ -50,6 +61,7 @@ public static class Icons
         ["play"] = new[] { ".#......", ".##.....", ".###....", ".####...", ".####...", ".###....", ".##.....", ".#......" },
         ["pause"] = new[] { "........", ".##..##.", ".##..##.", ".##..##.", ".##..##.", ".##..##.", ".##..##.", "........" },
         ["stop"] = new[] { "........", ".######.", ".######.", ".######.", ".######.", ".######.", ".######.", "........" },
+        [MediaStatus] = new[] { ".#......", ".##.....", ".###....", ".####...", ".####...", ".###....", ".##.....", ".#......" },   // Vorschau (= play), im Applet je nach Wiedergabe
 
         // ---------- Status ----------
         ["check"] = new[] { "........", ".......#", "......##", "#....##.", "##..##..", ".####...", "..##....", "........" },

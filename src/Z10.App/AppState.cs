@@ -24,6 +24,8 @@ public sealed class AppState : IDisposable
     public RtssSensorSource Rtss { get; }
     public AfterburnerSensorSource Afterburner { get; }
     public AudioSensorSource Audio { get; }
+    public WindowsMediaProvider Media { get; }
+    public MediaSensorSource MediaSensors { get; }
     public WpfTextRasterizer Text { get; } = new();
     public AppletEngine Engine { get; }
     public ImageLibrary Images { get; }
@@ -93,16 +95,26 @@ public sealed class AppState : IDisposable
         Z10.Core.Localization.Loc.UserFolder = System.IO.Path.Combine(Store.Root, "lang");
         Z10.Core.Localization.Loc.Use(Settings.Language);
         ApplyKeyboardLayout();
-        Applets = new ObservableCollection<Applet>(Store.LoadApplets());
+        var applets = Store.LoadApplets();
+        // Wiedergabe-Applet für bestehende Installationen einmalig ergänzen
+        if (!Settings.MediaAppletAdded)
+        {
+            if (DefaultApplets.AddMediaAppletOnce(applets, Settings) is Applet added) Store.SaveApplet(added);
+            Store.SaveSettings(Settings);
+        }
+        Applets = new ObservableCollection<Applet>(applets);
         Lhm = new LhmSensorSource();
         Rtss = new RtssSensorSource { Enabled = Settings.RtssEnabled };
         Afterburner = new AfterburnerSensorSource { Enabled = Settings.AfterburnerEnabled };
         Audio = new AudioSensorSource { Enabled = Settings.AudioEnabled };
-        Sensors = new SensorHub(Lhm, Rtss, Afterburner, Audio);
+        Media = new WindowsMediaProvider { Enabled = Settings.MediaEnabled };
+        MediaSensors = new MediaSensorSource(Media) { Enabled = Settings.MediaEnabled };
+        Sensors = new SensorHub(Lhm, Rtss, Afterburner, Audio, MediaSensors);
         Sensors.SetCustomSensors(Settings.CustomSensors);
         Images = new ImageLibrary(System.IO.Path.Combine(Store.Root, "images"));
         Engine = new AppletEngine(Sensors, Text, () => Z10HidDevice.TryOpen(), UnleashDetector.IsRunning, Settings);
         Engine.Renderer.Images = Images;
+        Engine.Renderer.Media = Media;
         Engine.SetApplets(Applets);
         Keys = new Z10KeyListener();
         Keys.KeyEvent += Engine.HandleKey;
@@ -165,6 +177,7 @@ public sealed class AppState : IDisposable
         Rtss.Enabled = Settings.RtssEnabled;
         Afterburner.Enabled = Settings.AfterburnerEnabled;
         Audio.Enabled = Settings.AudioEnabled;
+        Media.Enabled = MediaSensors.Enabled = Settings.MediaEnabled;
         Sensors.SetCustomSensors(Settings.CustomSensors);
         Store.SaveSettings(Settings);
         Engine.UpdateSettings(Settings);
@@ -189,6 +202,7 @@ public sealed class AppState : IDisposable
         Keys.Dispose();
         Engine.Dispose();
         Sensors.Dispose();
+        Media.Dispose();
     }
 }
 

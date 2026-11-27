@@ -278,7 +278,7 @@ public sealed class AppletEngine : IDisposable
     {
         lock (_lock)
         {
-            var enabled = _applets.Where(a => a.Enabled).ToList();
+            var enabled = RotationList();
             if (enabled.Count == 0) return;
             int idx = enabled.FindIndex(a => a.Id == _currentId);
             idx = idx < 0 ? 0 : (idx + dir + enabled.Count) % enabled.Count;
@@ -323,6 +323,21 @@ public sealed class AppletEngine : IDisposable
             fb.Blit(to, offset - w, 0);
         }
         return fb;
+    }
+
+    /// <summary>Läuft gerade eine Medienwiedergabe (für Applets „nur bei Wiedergabe“)?</summary>
+    public bool MediaPlaying => _renderer.Media?.Current?.IsPlaying == true;
+
+    /// <summary>
+    /// Applets in der Rotation: aktivierte, ohne die „nur bei Wiedergabe“-Applets, solange nichts läuft.
+    /// Bleibt dabei nichts übrig, alle aktivierten (das Display soll nicht leer sein).
+    /// </summary>
+    private List<Applet> RotationList()
+    {
+        var enabled = _applets.Where(a => a.Enabled).ToList();
+        if (MediaPlaying) return enabled;
+        var visible = enabled.Where(a => !a.OnlyWhenMediaPlaying).ToList();
+        return visible.Count > 0 ? visible : enabled;
     }
 
     private int CurrentDuration()
@@ -608,11 +623,12 @@ public sealed class AppletEngine : IDisposable
     private void HandleRotation(DateTime now)
     {
         if (_previewOverride is not null) return;
+        // Ein von Hand gezeigtes „nur bei Wiedergabe“-Applet bleibt seine Anzeigedauer lang stehen
         var enabled = _applets.Where(a => a.Enabled).ToList();
         if (enabled.Count == 0) { _currentId = null; return; }
         if (_currentId is null || enabled.All(a => a.Id != _currentId))
         {
-            _currentId = enabled[0].Id;
+            _currentId = RotationList()[0].Id;
             _switchAt = now.AddSeconds(CurrentDuration());
             _nextRender = DateTime.MinValue;
         }
@@ -677,7 +693,7 @@ public sealed class AppletEngine : IDisposable
         if (now < _nextRender) return;
         int refresh = Math.Max(100, applet.RefreshMs);
         if (now < _forceFullUntil) refresh = Math.Min(refresh, 250);   // nach Gerätebefehl schnell nachziehen
-        if (_renderer.IsAnimated(applet)) refresh = Math.Min(refresh, 100);   // animierte Grafiken flüssig halten
+        if (_renderer.NeedsFastRefresh(applet, DateTime.Now)) refresh = Math.Min(refresh, 100);   // Animationen/Lauftext flüssig halten
         _nextRender = now.AddMilliseconds(refresh);
         if (now >= _nextFullRefresh || now < _forceFullUntil)
         {

@@ -22,7 +22,7 @@ The app can also configure the keyboard's key lighting and display colour.
 - **Blending** per element: normal, invert (XOR – text on a bar stays readable) or cut out
 - **Smoothing** per element (average or median over N seconds) for noisy sensors
 - **Warnings:** an element inverts or blinks when a threshold is exceeded, and the applet can jump to the front
-- **Data sources:** LibreHardwareMonitor, RTSS (frame rate, frame time), MSI Afterburner (all monitoring values), audio device volume/mute, and **custom sensors** calculated by formula
+- **Data sources:** LibreHardwareMonitor, RTSS (frame rate, frame time), MSI Afterburner (all monitoring values), audio device volume/mute, **media playback** (title, artist, progress of Spotify, browsers, Media Player … via Windows), and **custom sensors** calculated by formula
 - **Auto sensors** such as “CPU temperature” that work on Intel, AMD and NVIDIA without changes
 - **Polling interval** 0.25–2 s; only hardware that an applet needs is polled that often
 - **Screensaver** after a configurable idle time: logo, starfield, Matrix, campfire or aquarium
@@ -105,6 +105,18 @@ Via the Windows Core Audio API:
 | `/audio/out/<device>/volume`, `/audio/in/<device>/volume` | every active device |
 
 To show text depending on mute state, use the format `{value:MUTED;;on}`: 1 shows “MUTED”, 0 shows “on”.
+
+### Media playback
+
+Via the Windows System Media Transport Controls (the same data as the volume overlay): Spotify, browsers (YouTube …), Media Player, VLC and other apps that report to Windows. If several are open, the one currently playing wins. The **Media** element shows title, artist, artist – title, album, app or the time (position, duration, remaining) and scrolls long texts. The built-in *Now playing* applet only appears in the rotation while something is playing (applet option *Only show while media is playing*).
+
+| Id | Value |
+|---|---|
+| `/media/progress` | progress in % (for a bar) |
+| `/media/position`, `/media/duration`, `/media/remaining` | seconds |
+| `/media/playing` | 1 while playing, otherwise 0 |
+
+The icon `media-status` switches between play, pause and stop.
 
 ### Formats
 

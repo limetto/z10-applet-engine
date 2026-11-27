@@ -70,11 +70,29 @@ public sealed class PixelFont
 
     public bool HasGlyph(char c) => _glyphs.ContainsKey(c);
 
+    /// <summary>
+    /// Ersatz für Zeichen ohne eigenes Muster (z. B. in Musiktiteln): typografische Striche und Anführungszeichen
+    /// als ASCII, Akzentbuchstaben als Grundbuchstabe (é → e, ñ → n).
+    /// </summary>
+    public static char Simplify(char c)
+    {
+        switch (c)
+        {
+            case '–': case '—': case '‐': case '−': return '-';
+            case '‘': case '’': case '‚': case '´': case '`': return '\'';
+            case '“': case '”': case '„': case '«': case '»': return '"';
+            case '…': return '.';
+            case '\u00A0': return ' ';
+        }
+        var d = c.ToString().Normalize(System.Text.NormalizationForm.FormD);
+        return d.Length > 0 && d[0] < 128 ? d[0] : c;
+    }
+
     /// <summary>Spalten eines Zeichens, bereits auf die genutzte Breite beschnitten.</summary>
     public ReadOnlySpan<byte> GetColumns(char c)
     {
         if (c == ' ') return new byte[SpaceWidth];
-        if (!_glyphs.TryGetValue(c, out var g)) g = _glyphs['?'];
+        if (!_glyphs.TryGetValue(c, out var g) && !_glyphs.TryGetValue(Simplify(c), out g)) g = _glyphs['?'];
         if (char.IsDigit(c)) return g;               // Tabellenziffern
         int start = 0, end = g.Length;
         while (start < end && g[start] == 0) start++;

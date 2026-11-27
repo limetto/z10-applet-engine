@@ -82,6 +82,7 @@ public partial class AppletsView : UserControl
         int r = Array.FindIndex(Refreshes, x => x.Ms == a.RefreshMs);
         RefreshBox.SelectedIndex = r < 0 ? 2 : r;
         WarnBox.IsChecked = a.ShowOnWarning;
+        MediaOnlyBox.IsChecked = a.OnlyWhenMediaPlaying;
         var ids = a.SensorIds.ToList();
         SensorList.Text = ids.Count == 0 ? L("keine") : string.Join(Environment.NewLine, ids);
         _loading = false;
@@ -108,6 +109,7 @@ public partial class AppletsView : UserControl
         if (DurationBox.SelectedIndex >= 0) a.DurationSeconds = Durations[DurationBox.SelectedIndex].Seconds;
         if (RefreshBox.SelectedIndex >= 0) a.RefreshMs = Refreshes[RefreshBox.SelectedIndex].Ms;
         a.ShowOnWarning = WarnBox.IsChecked == true;
+        a.OnlyWhenMediaPlaying = MediaOnlyBox.IsChecked == true;
         SetDirty(false);
         _state.SaveApplet(a);
     }

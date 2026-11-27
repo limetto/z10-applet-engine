@@ -12,6 +12,7 @@ using static Z10.Core.Localization.Loc;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using Z10.Core.Media;
 using Z10.Core.Model;
 using Z10.Core.Rendering;
 using Z10.Core.Sensors;
@@ -41,7 +42,7 @@ public partial class EditorView : UserControl
         _state = state;
         InitializeComponent();
         UiTranslator.Apply(this);
-        _renderer = new AppletRenderer(state.Text, state.Sensors, state.Engine.History) { Images = state.Images };
+        _renderer = new AppletRenderer(state.Text, state.Sensors, state.Engine.History) { Images = state.Images, Media = state.Media };
         EditorImage.Source = _bitmap;
         Layers.ItemsSource = _layers;
         AppletPicker.ItemsSource = _state.Applets;
@@ -56,7 +57,7 @@ public partial class EditorView : UserControl
         {
             bool second = ++ticks % 10 == 0;
             if (second) { _blink = !_blink; UpdateValueHint(); }
-            if (second || (_work is not null && _renderer.IsAnimated(_work))) RenderPreview(pushLive: second);
+            if (second || (_work is not null && _renderer.NeedsFastRefresh(_work, DateTime.Now))) RenderPreview(pushLive: second);
         };
         _timer.Start();
 
@@ -328,6 +329,7 @@ public partial class EditorView : UserControl
             "bar" => new BarWidget { Name = L("Balken"), W = 80, H = 7, Sensor = DefaultApplets.CpuLoad },
             "graph" => new GraphWidget { Name = L("Verlauf"), W = 80, H = 16, Sensor = DefaultApplets.CpuLoad, Min = 0, Max = 100 },
             "clock" => new ClockWidget { Name = L("Uhr"), W = 60, H = 7, Format = "HH:mm:ss" },
+            "media" => new MediaWidget { Name = L("Medien"), W = 100, H = 7, Field = MediaField.ArtistTitle },
             "line" => new ShapeWidget { Name = L("Linie"), Shape = ShapeKind.Line, W = 40, H = 1 },
             "rect" => new ShapeWidget { Name = L("Rechteck"), Shape = ShapeKind.Rectangle, W = 30, H = 12 },
             "ellipse" => new ShapeWidget { Name = L("Oval"), Shape = ShapeKind.Ellipse, W = 16, H = 16 },
@@ -397,6 +399,9 @@ public partial class EditorView : UserControl
             case ShapeWidget sh:
                 AddShapeProps(sh);
                 break;
+            case MediaWidget m:
+                AddMediaProps(m);
+                break;
         }
 
         AddLabel("Position und Größe (Pixel)");
@@ -427,6 +432,37 @@ public partial class EditorView : UserControl
                    ("bis (≤)", () => w.Warn?.Below?.ToString(CultureInfo.CurrentCulture) ?? "", v => { EnsureWarn(w).Below = TryDouble(v, out var d) ? d : null; CleanWarn(w); }));
             AddCheck("Blinken statt dauerhaft invertieren", w.Warn?.Blink ?? false, v => { EnsureWarn(w).Blink = v; CleanWarn(w); });
         }
+    }
+
+    private static readonly (MediaField Field, string Label)[] MediaFields =
+    {
+        (MediaField.Title, "Titel"),
+        (MediaField.Artist, "Interpret"),
+        (MediaField.ArtistTitle, "Interpret – Titel"),
+        (MediaField.Album, "Album"),
+        (MediaField.App, "Programm (Spotify, Edge …)"),
+        (MediaField.Time, "Zeit (1:23 / 3:45)"),
+        (MediaField.Position, "Position (1:23)"),
+        (MediaField.Duration, "Dauer (3:45)"),
+        (MediaField.Remaining, "Restzeit (-2:22)"),
+    };
+
+    private void AddMediaProps(MediaWidget m)
+    {
+        AddLabel("Anzeige");
+        var field = new ComboBox
+        {
+            ItemsSource = MediaFields.Select(f => L(f.Label)).ToList(),
+            SelectedIndex = Math.Max(0, Array.FindIndex(MediaFields, f => f.Field == m.Field)),
+        };
+        field.SelectionChanged += (_, _) => { if (field.SelectedIndex >= 0) m.Field = MediaFields[field.SelectedIndex].Field; Changed(); };
+        PropsPanel.Children.Add(field);
+        AddText("Text, wenn nichts läuft", m.Placeholder, v => m.Placeholder = v);
+        AddFont(m.Style, s => m.Style = s);
+        AddAlign(m.Align, a => m.Align = a);
+        AddCheck("Lauftext, wenn der Text nicht passt", m.Scroll, v => m.Scroll = v);
+        AddRow(("Geschwindigkeit (Pixel/s)", () => m.ScrollSpeed.ToString(), v => { if (int.TryParse(v, out var i) && i >= 1) m.ScrollSpeed = Math.Min(i, 200); }));
+        AddHint("Quelle ist die Medienwiedergabe von Windows (Spotify, Browser, Media Player …). Für einen Fortschrittsbalken einen Balken mit dem Sensor „Medien · Fortschritt“ verwenden.");
     }
 
     private void AddShapeProps(ShapeWidget sh)
@@ -745,6 +781,11 @@ public partial class EditorView : UserControl
             new(AudioSensorSource.DefaultOutMute, L("Audio · Standardgerät stumm (1/0)")),
             new(AudioSensorSource.DefaultInVolume, L("Audio · Mikrofon-Lautstärke (%)")),
             new(AudioSensorSource.DefaultInMute, L("Audio · Mikrofon stumm (1/0)")),
+            new(MediaSensorSource.ProgressId, L("Medien · Fortschritt (%)")),
+            new(MediaSensorSource.PositionId, L("Medien · Position (s)")),
+            new(MediaSensorSource.DurationId, L("Medien · Dauer (s)")),
+            new(MediaSensorSource.RemainingId, L("Medien · Restzeit (s)")),
+            new(MediaSensorSource.PlayingId, L("Medien · spielt (1/0)")),
         };
         foreach (var s in _state.Sensors.Sensors.OrderBy(s => s.Hardware).ThenBy(s => s.Type).ThenBy(s => s.Name))
         {

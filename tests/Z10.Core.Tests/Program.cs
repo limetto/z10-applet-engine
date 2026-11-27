@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text.Json;
 using Z10.Core.Device;
 using Z10.Core.Engine;
+using Z10.Core.Media;
 using Z10.Core.Model;
 using Z10.Core.Rendering;
 using Z10.Core.Sensors;
@@ -26,7 +27,11 @@ if (args.Length == 2 && args[0] == "--boot")
 if (args.Length == 2 && args[0] == "--dump")
 {
     Directory.CreateDirectory(args[1]);
-    var rd = new AppletRenderer(PixelTextRasterizer.Instance, StaticSensorSource.Demo(), new SensorHistory()) { Culture = CultureInfo.GetCultureInfo("de-DE") };
+    var demoMedia = new StaticMediaProvider { Current = new MediaInfo("Bohemian Rhapsody", "Queen", "A Night at the Opera", "Spotify",
+        MediaStatus.Playing, TimeSpan.FromSeconds(83), TimeSpan.FromSeconds(354), DateTime.UtcNow) };
+    var demoHub = new SensorHub(StaticSensorSource.Demo(), new MediaSensorSource(demoMedia));
+    demoHub.Update();
+    var rd = new AppletRenderer(PixelTextRasterizer.Instance, demoHub, new SensorHistory()) { Culture = CultureInfo.GetCultureInfo("de-DE"), Media = demoMedia };
     foreach (var a in DefaultApplets.Create())
     {
         var fb = new Framebuffer();
@@ -184,6 +189,93 @@ var tests = new List<(string Name, Action Body)>
         Eq(EngineState.Conflict, e.State);
         True(dev.Reports.Last()[2] == 0xFE, "nicht freigegeben");
     }),
+    ("Medien: Position hochzählen, Texte, App-Namen", () =>
+    {
+        var t0 = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var m = new MediaInfo("Song", "Band", "Album", "Spotify", MediaStatus.Playing, TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(225), t0);
+        Eq(TimeSpan.FromSeconds(70), m.PositionAt(t0.AddSeconds(10)));
+        Eq(TimeSpan.FromSeconds(225), m.PositionAt(t0.AddMinutes(30)));            // nicht über die Dauer hinaus
+        Eq(TimeSpan.FromSeconds(60), (m with { Status = MediaStatus.Paused }).PositionAt(t0.AddSeconds(10)));
+        Eq("Band – Song", MediaText.Get(m, MediaField.ArtistTitle, t0));
+        Eq("Song", MediaText.Get(m with { Artist = "" }, MediaField.ArtistTitle, t0));
+        Eq("1:10 / 3:45", MediaText.Get(m, MediaField.Time, t0.AddSeconds(10)));
+        Eq("-2:35", MediaText.Get(m, MediaField.Remaining, t0.AddSeconds(10)));
+        Eq("1:02:03", MediaText.FormatTime(new TimeSpan(1, 2, 3)));
+        Eq("", MediaText.Get(null, MediaField.Title, t0));
+        Eq("Spotify", MediaText.FriendlyApp("Spotify.exe"));
+        Eq("Edge", MediaText.FriendlyApp("MSEdge"));
+        Eq("Media Player", MediaText.FriendlyApp("Microsoft.ZuneMusic_8wekyb3d8bbwe!Microsoft.ZuneMusic"));
+        var src = new MediaSensorSource(new StaticMediaProvider { Current = m }) { UtcNow = () => t0.AddSeconds(52.5) };
+        src.Update();
+        Eq(50.0, src.GetValue(MediaSensorSource.ProgressId));
+        Eq(1.0, src.GetValue(MediaSensorSource.PlayingId));
+        Eq(112.5, src.GetValue(MediaSensorSource.RemainingId));
+    }),
+    ("Medien-Baustein: Lauftext, Platzhalter, Statussymbol", () =>
+    {
+        var t0 = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var media = new StaticMediaProvider();
+        var r = new AppletRenderer(PixelTextRasterizer.Instance, StaticSensorSource.Demo(), new SensorHistory()) { Media = media };
+        var w = new MediaWidget { X = 0, Y = 0, W = 40, H = 7, Field = MediaField.Title, Placeholder = "nix" };
+        var a = new Applet { Widgets = { w } };
+        MonoBitmap Frame(DateTime t) { var fb = new Framebuffer(); r.Render(a, fb, t); return fb; }
+
+        var ph = new Framebuffer(); ph.Blit(PixelTextRasterizer.Instance.Render("nix", new TextStyle()), 0, 0);
+        True(Frame(t0).Same(ph), "Platzhalter fehlt");
+        False(r.NeedsFastRefresh(a, t0), "Platzhalter braucht keinen Lauftext");
+
+        media.Current = new MediaInfo("Ein sehr langer Titel der nicht passt", "", "", "App", MediaStatus.Playing, null, null, t0);
+        True(r.NeedsFastRefresh(a, t0), "langer Titel sollte laufen");
+        var f1 = Frame(t0);
+        True(Frame(t0.AddSeconds(1)).Same(f1), "in der Pause am Anfang steht der Text");
+        False(Frame(t0.AddSeconds(3)).Same(f1), "Text läuft nicht");
+        for (int x = 40; x < 160; x++) for (int y = 0; y < 32; y++) if (Frame(t0.AddSeconds(3))[x, y]) throw new Exception("Lauftext ragt über den Rahmen");
+
+        var icon = new Applet { Widgets = { new IconWidget { W = 8, H = 8, Icon = Icons.MediaStatus } } };
+        var fbIcon = new Framebuffer(); r.Render(icon, fbIcon, t0);
+        var play = new Framebuffer(); play.Blit(Icons.Get("play"), 0, 0);
+        True(fbIcon.Same(play), "Statussymbol nicht Play");
+        media.Current = media.Current with { Status = MediaStatus.Paused };
+        fbIcon = new Framebuffer(); r.Render(icon, fbIcon, t0);
+        var pause = new Framebuffer(); pause.Blit(Icons.Get("pause"), 0, 0);
+        True(fbIcon.Same(pause), "Statussymbol nicht Pause");
+
+        True(PixelFont.Default.Render("é–").Same(PixelFont.Default.Render("e-")), "Ersatzzeichen fehlen");
+
+        var json = JsonSerializer.Serialize<Widget>(new MediaWidget { Field = MediaField.Remaining, ScrollSpeed = 33 }, JsonDefaults.Options);
+        var back = (MediaWidget)JsonSerializer.Deserialize<Widget>(json, JsonDefaults.Options)!;
+        Eq(MediaField.Remaining, back.Field);
+        Eq(33, back.ScrollSpeed);
+    }),
+    ("Wiedergabe-Applet: nur bei Wiedergabe, einmalig ergänzt", () =>
+    {
+        var dev = new FakeDevice();
+        var media = new StaticMediaProvider();
+        var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => dev, () => false, new AppSettings()) { ConnectGrace = TimeSpan.Zero };
+        e.Renderer.Media = media;
+        var apps = DefaultApplets.Create().Where(a => a.Enabled).ToList();
+        foreach (var a in apps) a.DurationSeconds = 5;
+        e.SetApplets(apps);
+        var t = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var seen = new List<string?>();
+        for (int i = 0; i < 12; i++) { e.Tick(t.AddSeconds(i * 5.5)); seen.Add(e.Current?.Name); }
+        False(seen.Contains("Wiedergabe"), "Wiedergabe-Applet ohne Wiedergabe gezeigt");
+        media.Current = new MediaInfo("Song", "Band", "", "App", MediaStatus.Playing, TimeSpan.Zero, TimeSpan.FromMinutes(3), t);
+        seen.Clear();
+        for (int i = 12; i < 24; i++) { e.Tick(t.AddSeconds(i * 5.5)); seen.Add(e.Current?.Name); }
+        True(seen.Contains("Wiedergabe"), "Wiedergabe-Applet bei Wiedergabe nicht gezeigt");
+
+        var settings = new AppSettings();
+        var list = DefaultApplets.Create().Where(a => a.Widgets.All(w => w is not MediaWidget)).ToList();
+        var added = DefaultApplets.AddMediaAppletOnce(list, settings);
+        True(added is not null && list.Contains(added), "nicht ergänzt");
+        list.Remove(added!);
+        Eq(null, DefaultApplets.AddMediaAppletOnce(list, settings));            // gelöscht bleibt gelöscht
+        var fresh = new AppSettings();
+        Eq(null, DefaultApplets.AddMediaAppletOnce(DefaultApplets.Create(), fresh));
+        True(fresh.MediaAppletAdded, "Merker fehlt");
+    }),
+
     ("Formeln: Rechnen, Funktionen, fehlende Sensoren", () =>
     {
         double? L(string id) => id switch { "a" => 10, "b" => 4, "auto:cpu/Load/*" => 50, _ => null };
@@ -899,6 +991,8 @@ static void Seq2(string[] expected, IReadOnlyList<string> actual)
     if (!expected.SequenceEqual(actual))
         throw new Exception($"erwartet [{string.Join(",", expected)}], war [{string.Join(",", actual)}]");
 }
+
+static void False(bool cond, string msg) => True(!cond, msg);
 
 static void True(bool cond, string msg)
 {

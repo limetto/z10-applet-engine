@@ -34,6 +34,8 @@
               <TextBlock x:Name="AfterburnerStatus" Style="{StaticResource Hint}" Margin="26,0,0,6" Text="–"/>
               <CheckBox x:Name="AudioBox" Content="Lautstärke der Audiogeräte" Click="Sources_Click"/>
               <TextBlock x:Name="AudioStatus" Style="{StaticResource Hint}" Margin="26,0,0,6" Text="–"/>
+              <CheckBox x:Name="MediaBox" Content="Medienwiedergabe (Titel, Interpret, Fortschritt)" Click="Sources_Click"/>
+              <TextBlock x:Name="MediaStatusText" Style="{StaticResource Hint}" Margin="26,0,0,6" Text="–"/>
               <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0"
                          Text="Framerate gibt es nur, wenn der RivaTuner Statistics Server läuft. Er ist ein eigenes Programm (Symbol im Infobereich), das mit Afterburner installiert wird. Afterburner allein liefert keine FPS."/>
           </StackPanel>

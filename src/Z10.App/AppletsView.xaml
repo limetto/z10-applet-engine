@@ -121,6 +121,9 @@
                 <ComboBox x:Name="RefreshBox" SelectionChanged="Settings_Changed"/>
                 <CheckBox x:Name="WarnBox" Margin="0,22,0,0" Click="Settings_Changed"
                           Content="Bei Warnwert sofort anzeigen"/>
+                <CheckBox x:Name="MediaOnlyBox" Margin="0,8,0,0" Click="Settings_Changed"
+                          Content="Nur zeigen, wenn Medien laufen"
+                          ToolTip="Beim automatischen Durchwechseln überspringen, solange nichts abgespielt wird"/>
               </StackPanel>
             </Grid>
             <TextBlock Style="{StaticResource Label}" Text="Verwendete Sensoren"/>

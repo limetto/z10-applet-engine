@@ -26,7 +26,7 @@ Die Applets setzt du im Layout-Editor aus Bausteinen zusammen. Die Werte kommen 
 - **Schriften:** eingebaute 5×7-Pixelschrift in 4 Größen oder jede Windows-Schrift (ohne Kantenglättung gerendert)
 - **Überlagerung** pro Baustein: Normal, Invertieren (XOR, z. B. Schrift auf einem Balken bleibt lesbar) oder Ausstanzen
 - **Glättung** pro Baustein (Mittelwert oder Median über N Sekunden) für stark schwankende Sensoren
-- **Weitere Datenquellen:** RTSS (Framerate, Frametime), MSI Afterburner (alle Überwachungswerte), Lautstärke und Stummschaltung der Audiogeräte und **eigene Sensoren** per Formel aus bestehenden Sensoren
+- **Weitere Datenquellen:** RTSS (Framerate, Frametime), MSI Afterburner (alle Überwachungswerte), Lautstärke und Stummschaltung der Audiogeräte, **Medienwiedergabe** (Titel, Interpret, Fortschritt von Spotify, Browser, Media Player … über Windows) und **eigene Sensoren** per Formel aus bestehenden Sensoren
 - **Warnwerte:** Ein Baustein wird invertiert oder blinkt, wenn ein Grenzwert überschritten ist. Das Applet kann dann sofort nach vorne springen.
 - **Auto-Sensoren** wie „CPU-Temperatur“, die auf Intel, AMD und NVIDIA ohne Anpassung funktionieren
 - **Sprachen:** Deutsch und Englisch, weitere über Sprachdateien ohne Neubau (Vorlage unter *Optionen*)
@@ -125,6 +125,18 @@ Im Layout-Editor beim Symbol-Baustein auf **„Grafik importieren …“** klick
 - Invertieren (für dunkle Motive auf hellem Grund).
 
 Die Vorschau zeigt das Ergebnis in Displaygröße, Animationen laufen mit. Gespeichert wird in `%APPDATA%\Z10AppletEngine\images\`, im Applet heißt die Grafik dann `img:<Name>`. Animationen laufen auf der Tastatur mit bis zu etwa 10 Bildern pro Sekunde.
+
+### Medienwiedergabe
+
+Über die System Media Transport Controls von Windows (dieselben Daten wie im Lautstärke-Overlay): Spotify, Browser (YouTube …), Media Player, VLC und andere Programme, die sich bei Windows melden. Laufen mehrere, gewinnt das, das gerade spielt. Der Baustein **Medien** zeigt Titel, Interpret, Interpret – Titel, Album, Programm oder die Zeit (Position, Dauer, Restzeit) und lässt lange Texte durchlaufen. Das mitgelieferte Applet *Wiedergabe* erscheint beim Durchwechseln nur, solange etwas läuft (Applet-Option *Nur zeigen, wenn Medien laufen*).
+
+| Id | Wert |
+|---|---|
+| `/media/progress` | Fortschritt in % (für einen Balken) |
+| `/media/position`, `/media/duration`, `/media/remaining` | Sekunden |
+| `/media/playing` | 1 beim Abspielen, sonst 0 |
+
+Das Symbol `media-status` wechselt zwischen Play, Pause und Stopp.
 
 ### Formate
 

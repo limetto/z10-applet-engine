@@ -1,5 +1,6 @@
 using static Z10.Core.Localization.Loc;
 using Z10.Core.Rendering;
+using Z10.Core.Storage;
 
 namespace Z10.Core.Model;
 
@@ -17,6 +18,22 @@ public static class DefaultApplets
     public const string RamUsed = "auto:memory/Data/Memory Used||Used Memory";
     public const string RamFree = "auto:memory/Data/Memory Available||Available Memory";
     public const string RamLoad = "auto:memory/Load/Memory||*";
+
+    /// <summary>Wiedergabe: Titel und Interpret als Lauftext, Fortschritt und Zeit. Nur sichtbar, wenn etwas läuft.</summary>
+    public static Applet MediaApplet(int order) => new()
+    {
+        Name = L("Wiedergabe"), Order = order, DurationSeconds = 10, RefreshMs = 500, OnlyWhenMediaPlaying = true,
+        Widgets =
+        {
+            new IconWidget { Name = L("Status"), X = 0, Y = 0, W = 8, H = 8, Icon = Icons.MediaStatus },
+            new MediaWidget { Name = L("Titel"), X = 11, Y = 1, W = 149, H = 7, Field = Media.MediaField.Title, Placeholder = L("Keine Wiedergabe") },
+            new MediaWidget { Name = L("Interpret"), X = 11, Y = 10, W = 149, H = 7, Field = Media.MediaField.Artist },
+            new BarWidget { Name = L("Fortschritt"), X = 0, Y = 19, W = 160, H = 5, Sensor = Sensors.MediaSensorSource.ProgressId },
+            new MediaWidget { Name = L("Position"), X = 0, Y = 25, W = 60, H = 7, Field = Media.MediaField.Position, Scroll = false },
+            new MediaWidget { Name = L("Programm"), X = 40, Y = 25, W = 80, H = 7, Field = Media.MediaField.App, Scroll = false, Align = TextAlign.Center },
+            new MediaWidget { Name = L("Dauer"), X = 100, Y = 25, W = 60, H = 7, Field = Media.MediaField.Duration, Scroll = false, Align = TextAlign.Right },
+        }
+    };
 
     public static List<Applet> Create() => new()
     {
@@ -79,5 +96,20 @@ public static class DefaultApplets
                 new GraphWidget { Name = L("Verlauf"), X = 0, Y = 9, W = 160, H = 23, Sensor = CpuLoad, Min = 0, Max = 100, Seconds = 60 },
             }
         },
+        MediaApplet(5),
     };
+
+    /// <summary>
+    /// Für bestehende Installationen: Wiedergabe-Applet einmalig ergänzen, falls noch keins mit Medien-Bausteinen da ist.
+    /// </summary>
+    /// <returns>das ergänzte Applet oder null</returns>
+    public static Applet? AddMediaAppletOnce(IList<Applet> applets, AppSettings settings)
+    {
+        if (settings.MediaAppletAdded) return null;
+        settings.MediaAppletAdded = true;
+        if (applets.Any(a => a.Widgets.OfType<MediaWidget>().Any())) return null;
+        var a = MediaApplet(applets.Count == 0 ? 0 : applets.Max(x => x.Order) + 1);
+        applets.Add(a);
+        return a;
+    }
 }
