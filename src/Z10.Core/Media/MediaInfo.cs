@@ -84,6 +84,10 @@ public static class MediaText
         };
     }
 
+    /// <summary>App-Kennung, die nur ein Hash ist (z. B. Firefox: "308046B0AF4A39CB").</summary>
+    public static bool IsHashId(string id) =>
+        id.Length >= 8 && id.All(Uri.IsHexDigit);
+
     /// <summary>
     /// Lesbarer App-Name aus der App-Kennung von Windows ("Spotify.exe", "Microsoft.ZuneMusic_8wekyb3d8bbwe!Microsoft.ZuneMusic", "MSEdge").
     /// </summary>
@@ -91,6 +95,8 @@ public static class MediaText
     {
         if (string.IsNullOrWhiteSpace(id)) return "";
         var s = id.Trim();
+        // Reine Hex-Kennung (Firefox & Co. leiten sie aus dem Installationspfad ab) ist kein lesbarer Name → ausblenden
+        if (IsHashId(s)) return "";
         int bang = s.LastIndexOf('!');
         if (bang >= 0 && bang < s.Length - 1) s = s[(bang + 1)..];
         int us = s.IndexOf('_');

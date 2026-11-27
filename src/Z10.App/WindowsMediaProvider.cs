@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Concurrent;
+using Microsoft.Win32;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -91,12 +93,54 @@ public sealed class WindowsMediaProvider : IMediaProvider, IDisposable
             Title: props?.Title ?? "",
             Artist: string.IsNullOrWhiteSpace(props?.Artist) ? props?.AlbumArtist ?? "" : props!.Artist,
             Album: props?.AlbumTitle ?? "",
-            App: MediaText.FriendlyApp(session.SourceAppUserModelId),
+            App: AppName(session.SourceAppUserModelId),
             Status: status,
             Position: position,
             Duration: duration,
             PositionUpdatedUtc: updated,
             Rate: playback?.PlaybackRate is double r && r > 0 ? r : 1);
+    }
+
+    private static readonly ConcurrentDictionary<string, string> AppNames = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Lesbarer Programmname. Firefox (und Thunderbird) melden sich mit einem Hash aus dem Installationspfad; den
+    /// Namen dazu legt Mozilla unter Software\Mozilla\&lt;Programm&gt;\TaskBarIDs ab (Wert = Pfad, Daten = Hash).
+    /// Sonst hilft die Registrierung für Benachrichtigungen (Software\Classes\AppUserModelId\&lt;Id&gt;, DisplayName).
+    /// Unbekannte Hashes werden ausgeblendet.
+    /// </summary>
+    public static string AppName(string? aumid)
+    {
+        if (string.IsNullOrWhiteSpace(aumid)) return "";
+        return AppNames.GetOrAdd(aumid.Trim(), id => LookupRegistry(id) ?? MediaText.FriendlyApp(id));
+    }
+
+    private static string? LookupRegistry(string id)
+    {
+        foreach (var root in new[] { Registry.CurrentUser, Registry.LocalMachine })
+        {
+            try
+            {
+                using (var mozilla = root.OpenSubKey(@"Software\Mozilla"))
+                {
+                    if (mozilla is not null)
+                        foreach (var product in mozilla.GetSubKeyNames())
+                        {
+                            using var ids = mozilla.OpenSubKey(product + @"\TaskBarIDs");
+                            if (ids is null) continue;
+                            foreach (var name in ids.GetValueNames())
+                                if (string.Equals(ids.GetValue(name) as string, id, StringComparison.OrdinalIgnoreCase))
+                                    return product.Replace("Mozilla ", "");
+                        }
+                }
+                using var aumid = root.OpenSubKey(@"Software\Classes\AppUserModelId\" + id);
+                if (aumid?.GetValue("DisplayName") is string display && display.Length > 0 && !display.StartsWith("@"))
+                    return display;
+            }
+            catch (Exception) { /* fehlende Rechte o. Ä. */ }
+        }
+        // Bekannte Standardinstallation von Firefox (C:\Program Files\Mozilla Firefox)
+        return id.Equals("308046B0AF4A39CB", StringComparison.OrdinalIgnoreCase) ? "Firefox" : null;
     }
 
     public void Dispose() => _timer.Dispose();

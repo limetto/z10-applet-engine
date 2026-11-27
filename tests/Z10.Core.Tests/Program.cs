@@ -204,6 +204,7 @@ var tests = new List<(string Name, Action Body)>
         Eq("", MediaText.Get(null, MediaField.Title, t0));
         Eq("Spotify", MediaText.FriendlyApp("Spotify.exe"));
         Eq("Edge", MediaText.FriendlyApp("MSEdge"));
+        Eq("", MediaText.FriendlyApp("308046B0AF4A39CB"));                     // Firefox-Hash ausblenden
         Eq("Media Player", MediaText.FriendlyApp("Microsoft.ZuneMusic_8wekyb3d8bbwe!Microsoft.ZuneMusic"));
         var src = new MediaSensorSource(new StaticMediaProvider { Current = m }) { UtcNow = () => t0.AddSeconds(52.5) };
         src.Update();
