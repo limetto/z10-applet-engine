@@ -49,7 +49,7 @@ Recent versions of LibreHardwareMonitor (the app uses 0.9.6) read CPU, motherboa
 
 ### SmartScreen
 
-The EXE is not code-signed, so Windows may warn on first start (“Windows protected your PC”). Choose *More info → Run anyway*.
+Code signing via the SignPath Foundation is in preparation (see [code signing policy](#code-signing-policy)). Until then, and for the first downloads of a new signed release, Windows may warn on first start (“Windows protected your PC”). Choose *More info → Run anyway*, or unblock the ZIP before extracting it (right-click → *Properties* → *Unblock*).
 
 ## Data
 
@@ -146,6 +146,12 @@ tools/                Python scripts used while reverse engineering (LCD and lig
 GitHub Actions builds a self-contained EXE (win-x64) on every push. A release is created via *Actions → Release → Run workflow* (enter a version) or by pushing a tag `v*`.
 
 UI texts are written in German in the source; `src/Z10.Core/Localization/en.json` maps them to English. A test fails the build if a visible text has no English translation.
+
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org). Details, team roles and privacy policy: [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md).
+
+Privacy: this program does not transfer any information to other networked systems unless specifically requested by the user.
 
 ## License
 

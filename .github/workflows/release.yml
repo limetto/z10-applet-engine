@@ -16,6 +16,14 @@ on:
 
 permissions:
   contents: write
+  actions: read
+
+# Signieren über SignPath (kostenlos für Open Source, Zertifikat der SignPath Foundation).
+# Aktiv, sobald unter Settings → Secrets and variables → Actions eingetragen ist:
+#   Variable SIGNPATH_ORGANIZATION_ID, Variable SIGNPATH_PROJECT_SLUG (Standard: z10-applet-engine),
+#   Variable SIGNPATH_POLICY_SLUG (Standard: release-signing), Secret SIGNPATH_API_TOKEN.
+# Ohne diese Einträge entsteht wie bisher ein unsignierter Release.
+# Jede Signatur muss in SignPath von Hand freigegeben werden; der Workflow wartet bis zu 2 Stunden darauf.
 
 jobs:
   release:
@@ -36,10 +44,43 @@ jobs:
           -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
           -p:EnableCompressionInSingleFile=true -p:Version=${{ inputs.version }} -o publish
 
+      - name: Unsignierte EXE für SignPath hochladen
+        id: upload-unsigned
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-exe
+          path: publish/Z10AppletEngine.exe
+          if-no-files-found: error
+
+      - name: Signieren (SignPath, wartet auf Freigabe)
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'z10-applet-engine' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG || 'release-signing' }}
+          github-artifact-id: '${{ steps.upload-unsigned.outputs.artifact-id }}'
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 7200
+          output-artifact-directory: signed
+          parameters: |
+            version: ${{ toJSON(inputs.version) }}
+
+      - name: Signierte EXE übernehmen und prüfen
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        shell: pwsh
+        run: |
+          Copy-Item signed/Z10AppletEngine.exe publish/Z10AppletEngine.exe -Force
+          $sig = Get-AuthenticodeSignature publish/Z10AppletEngine.exe
+          "Signatur: $($sig.Status) · $($sig.SignerCertificate.Subject)"
+          if ($sig.Status -ne 'Valid') { throw "Signatur ungültig: $($sig.StatusMessage)" }
+
       - name: Paket schnüren
         shell: pwsh
         run: |
-          Copy-Item README.md, README.de.md, LICENSE, THIRD-PARTY-NOTICES.md publish/
+          Copy-Item README.md, README.de.md, LICENSE, THIRD-PARTY-NOTICES.md, CODE_SIGNING_POLICY.md publish/
           Compress-Archive -Path publish/* -DestinationPath Z10AppletEngine-${{ inputs.version }}-win-x64.zip
 
       - name: Release anlegen
@@ -47,7 +88,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          $signed = '${{ vars.SIGNPATH_ORGANIZATION_ID }}' -ne ''
+          $notes = if ($signed) {
+            "Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org). " +
+            "[Code signing policy](https://github.com/${{ github.repository }}/blob/main/CODE_SIGNING_POLICY.md)"
+          } else {
+            "Not code-signed yet – see the [code signing policy](https://github.com/${{ github.repository }}/blob/main/CODE_SIGNING_POLICY.md)."
+          }
           $ghArgs = @("v${{ inputs.version }}", "Z10AppletEngine-${{ inputs.version }}-win-x64.zip",
-                      "--target", "${{ github.sha }}", "--title", "Z10 Applet Engine ${{ inputs.version }}", "--generate-notes")
+                      "--target", "${{ github.sha }}", "--title", "Z10 Applet Engine ${{ inputs.version }}", "--generate-notes",
+                      "--notes", $notes)
           if ('${{ inputs.prerelease }}' -eq 'true') { $ghArgs += '--prerelease' }
           gh release create @ghArgs

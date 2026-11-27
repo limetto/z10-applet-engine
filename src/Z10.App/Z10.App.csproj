@@ -16,6 +16,8 @@
     <ApplicationIcon>app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version>1.0.0</Version>
+    <!-- Produktversion ohne angehängten Commit-Hash ("1.2.3" statt "1.2.3+abc…"), damit die Signatur-Prüfung von SignPath passt -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>Z10 Applet Engine</Product>
     <Description>Custom applets for the LCD of the EVGA Z10 keyboard</Description>
     <Authors>limetto</Authors>

@@ -50,7 +50,7 @@ Neuere Versionen von LibreHardwareMonitor (die App nutzt 0.9.6) lesen CPU-, Main
 
 ### SmartScreen
 
-Die EXE ist nicht signiert. Beim ersten Start warnt Windows deshalb eventuell („Der Computer wurde durch Windows geschützt“) – über *Weitere Informationen → Trotzdem ausführen* geht es weiter.
+Die Signatur über die SignPath Foundation ist in Vorbereitung (siehe [Richtlinie zur Code-Signatur](#richtlinie-zur-code-signatur-code-signing-policy)). Bis dahin – und bei den ersten Downloads einer neuen signierten Version – warnt Windows beim ersten Start eventuell („Der Computer wurde durch Windows geschützt“). Über *Weitere Informationen → Trotzdem ausführen* geht es weiter, oder die ZIP vor dem Entpacken entsperren (Rechtsklick → *Eigenschaften* → *Zulassen*).
 
 ## Daten
 
@@ -159,6 +159,12 @@ tests/Z10.Core.Tests  Tests ohne externe Pakete: dotnet run --project tests/Z10.
 `dotnet run --project tests/Z10.Core.Tests -- --dump <Ordner>` rendert alle Vorlagen als PBM-Bilder, ohne dass die Tastatur angeschlossen sein muss.
 
 GitHub Actions baut bei jedem Push eine selbstständige EXE (win-x64, keine .NET-Installation nötig). Ein Release entsteht über *Actions → Release → Run workflow* (Versionsnummer eingeben) oder ein Tag `v*`.
+
+## Richtlinie zur Code-Signatur (Code signing policy)
+
+Kostenlose Code-Signatur durch [SignPath.io](https://about.signpath.io), Zertifikat von der [SignPath Foundation](https://signpath.org). Einzelheiten, Rollen im Team und Datenschutz: [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md) (Englisch).
+
+Datenschutz: Das Programm überträgt keine Informationen an andere Systeme im Netzwerk, sofern der Nutzer das nicht ausdrücklich anfordert.
 
 ## Lizenz
 
