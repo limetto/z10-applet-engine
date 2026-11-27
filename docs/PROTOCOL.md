@@ -67,6 +67,14 @@ column, these keys switch as well – the row has to be checked.
 Releasing a key is followed by an empty report 1 (`01 00 …`). On Windows the collection can be read with `ReadFile` without a driver.
 While display pages are being written, the keyboard acknowledges each page with `09 00 00 21 …`.
 
+Other reports on the same channel:
+
+```
+09 00 01 00 <P>        profile changed to P (1..5), e.g. with Fn+1..5 on the keyboard or by command 01 P
+09 00 01 02 … <v>      unconfirmed: state changes, probably game mode (G/PC key);
+09 00 01 04 … <v>      the same values appear in status bytes 4 and 5 of command 81
+```
+
 ## Key lighting
 
 From USBPcap captures of EVGA Unleash. All commands are feature reports 7 (264 bytes), payload from byte 8.
@@ -75,23 +83,39 @@ From USBPcap captures of EVGA Unleash. All commands are feature reports 7 (264 b
 | Command | Direction | Meaning |
 |---|---|---|
 | `81` | GET | status: `07 81 <active profile> 00 00 01` |
-| `01 P` | SET | open profile P |
+| `01 P` | SET | open profile P; on its own it also switches the active profile (see below) |
 | `10 P` + 256 bytes | SET | key mask, 1 byte per position (01 = on), only effective in "Customize" mode |
 | `82 n` | GET | read profile block n (1..5) |
 | `02 n` + 256 bytes | SET | write profile block n |
-| `03 P` + 256 bytes | SET | key assignment position → HID code (always the same table) |
+| `03 P` + 256 bytes | SET | key assignment position → HID code; 0..127 normal layer, 128..255 Fn layer |
 | `12 P` | SET | save (flash, about 3 s) |
 | `90 P` | GET | read key mask of profile P |
 
 Unleash writes: `81`, `01 P`, `10 P`, five times `82 n` + `02 n`, ~9 × `81` (polling), `03 P`, `12 P`, `90 P`.
 The change only becomes visible at the end; meanwhile Unleash shows "APPLYING DRIVER" on the LCD.
 
+### Timing and reading reliably
+
+Unleash (`hid.exe`) waits **50 ms after every SET** and **500 ms after every GET**. Without the long pause after
+reading, the firmware hung at least once in testing: `HidD_SetFeature` then failed until the keyboard was unplugged.
+
+Shortly after write commands, a GET sometimes returns a response for a different request – e.g. asking for block 2
+with `82 02` returned `07 82 03 …` with the content of block 3, or an intermediate state. So every response has to
+be checked (byte 1 = command, for `82` also byte 2 = block number). If it doesn't match, read again after about
+100 ms and, if necessary, send the request again. The app tries up to 3 requests with 5 reads each.
+
+### Switching profiles
+
+`01 P` on its own switches the active profile (this is what the profile switch in Unleash's tray menu does, followed by
+a 150 ms pause). Check the result with `81`. The keyboard sends `09 00 01 00 P` and remembers the active profile
+after unplugging. On the keyboard itself, Fn+1..5 switch profiles (codes `C2`..`C6` in the Fn layer of the `03` table).
+
 Profile block (payload, one per profile 1..5, according to `hid.exe` and verified on the device):
 
 | Byte | Content |
 |---|---|
 | 1 | game mode: lock Windows key |
-| 3 | 0x30, meaning unknown |
+| 3 | 0x30 – required: without it, the key selection (Customize) has no effect in this profile. On the test device it was missing in profiles 2..5; the app sets it when writing |
 | 4 | 0x80 \| mode (0 = all keys, 1 = Customize, 2 = Trigger, 3 = Explosion) |
 | 5 | brightness 0..10 (0 = off; Unleash sets it in all blocks) |
 | 6 | breathing (01) |
@@ -106,5 +130,10 @@ Key positions: The table from `03` assigns an HID code to each position (0..127)
 decoded (Q = 8, W = 16, A = 10, S = 18, D = 26, Fn = 120 with code 0xAD, E-keys = 73, 74, 76, 78, 80, 125, 127 with
 code 0xD8). 110 positions are lit. `<>` (19) and `#'` (68) on the German keyboard have no LED; Unleash's
 "All" sets the US backslash (82) instead, which doesn't exist on the German keyboard.
-Positions 128..255 are always 0. The layout is in `src/Z10.Core/Device/Z10KeyLayout.cs`, a test script in
+Mask positions 128..255 are always 0. The layout is in `src/Z10.Core/Device/Z10KeyLayout.cs`, a test script in
 `tools/z10light.py`.
+
+## Unconfirmed
+
+- `01 FF` appears in Unleash captures; its meaning is unknown.
+- `05` uploads macros (not used by the app).

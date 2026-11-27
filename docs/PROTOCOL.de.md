@@ -67,6 +67,14 @@ auswertet, schaltet also auch bei diesen Tasten um – die Zeile muss geprüft w
 Nach dem Loslassen folgt noch ein leerer Report 1 (`01 00 …`). Unter Windows lässt sich die Collection ohne Treiber mit `ReadFile` lesen.
 Während die Display-Seiten geschrieben werden, quittiert die Tastatur jede Seite mit `09 00 00 21 …`.
 
+Weitere Meldungen auf demselben Kanal:
+
+```
+09 00 01 00 <P>        Profil auf P (1..5) gewechselt, z. B. mit Fn+1..5 an der Tastatur oder per Befehl 01 P
+09 00 01 02 … <v>      unbestätigt: Zustandswechsel, vermutlich Spielmodus (G/PC-Taste);
+09 00 01 04 … <v>      dieselben Werte stehen in Byte 4 und 5 des Status (Befehl 81)
+```
+
 ## Tastenbeleuchtung
 
 Aus USBPcap-Mitschnitten von EVGA Unleash. Alle Befehle sind Feature-Reports 7 (264 Byte), Nutzdaten ab Byte 8.
@@ -75,23 +83,40 @@ Aus USBPcap-Mitschnitten von EVGA Unleash. Alle Befehle sind Feature-Reports 7 (
 | Befehl | Richtung | Bedeutung |
 |---|---|---|
 | `81` | GET | Status: `07 81 <aktives Profil> 00 00 01` |
-| `01 P` | SET | Profil P öffnen |
+| `01 P` | SET | Profil P öffnen; allein gesendet wechselt es auch das aktive Profil (siehe unten) |
 | `10 P` + 256 Byte | SET | Tastenmaske, 1 Byte pro Position (01 = an), nur im Modus „Customize“ wirksam |
 | `82 n` | GET | Profilblock n (1..5) lesen |
 | `02 n` + 256 Byte | SET | Profilblock n schreiben |
-| `03 P` + 256 Byte | SET | Tastenbelegung Position → HID-Code (immer dieselbe Tabelle) |
+| `03 P` + 256 Byte | SET | Tastenbelegung Position → HID-Code; 0..127 normale Ebene, 128..255 Fn-Ebene |
 | `12 P` | SET | Speichern (Flash, ca. 3 s) |
 | `90 P` | GET | Tastenmaske von Profil P lesen |
 
 Unleash schreibt: `81`, `01 P`, `10 P`, fünfmal `82 n` + `02 n`, ~9 × `81` (Polling), `03 P`, `12 P`, `90 P`.
 Die Änderung wird erst am Ende sichtbar; Unleash zeigt währenddessen „APPLYING DRIVER“ auf dem LCD.
 
+### Pausen und zuverlässiges Lesen
+
+Unleash (`hid.exe`) wartet **50 ms nach jedem SET** und **500 ms nach jedem GET**. Ohne die lange Pause nach dem
+Lesen hat sich die Firmware im Test mindestens einmal aufgehängt: `HidD_SetFeature` schlug dann fehl, bis die Tastatur
+neu eingesteckt wurde.
+
+Kurz nach Schreibbefehlen liefert ein GET manchmal die Antwort auf eine andere Anfrage – z. B. kam auf `82 02`
+(Block 2) die Antwort `07 82 03 …` mit dem Inhalt von Block 3 oder ein Zwischenstand. Jede Antwort muss deshalb geprüft
+werden (Byte 1 = Befehl, bei `82` auch Byte 2 = Blocknummer). Passt sie nicht, nach etwa 100 ms erneut lesen und
+notfalls neu anfragen. Die App versucht bis zu 3 Anfragen mit je 5 Leseversuchen.
+
+### Profil wechseln
+
+`01 P` allein wechselt das aktive Profil (so macht es der Profilwechsel im Infobereich von Unleash, danach 150 ms Pause).
+Das Ergebnis mit `81` prüfen. Die Tastatur meldet `09 00 01 00 P` und merkt sich das aktive Profil auch nach dem
+Abstecken. An der Tastatur selbst wechseln Fn+1..5 das Profil (Codes `C2`..`C6` in der Fn-Ebene der `03`-Tabelle).
+
 Profilblock (Nutzdaten, einer pro Profil 1..5, laut `hid.exe` und am Gerät geprüft):
 
 | Byte | Inhalt |
 |---|---|
 | 1 | Spielmodus: Windows-Taste sperren |
-| 3 | 0x30, Bedeutung offen |
+| 3 | 0x30 – nötig: Ohne diesen Wert wirkt die Tastenauswahl (Customize) in diesem Profil nicht. Am Testgerät fehlte er in Profil 2..5; die App setzt ihn beim Schreiben |
 | 4 | 0x80 \| Modus (0 = alle Tasten, 1 = Customize, 2 = Trigger, 3 = Explosion) |
 | 5 | Helligkeit 0..10 (0 = aus; Unleash setzt sie in allen Blöcken) |
 | 6 | Atmen (01) |
@@ -106,5 +131,10 @@ Tastenpositionen: Die Tabelle von `03` ordnet jeder Position (0..127) einen HID-
 entschlüsselt (Q = 8, W = 16, A = 10, S = 18, D = 26, Fn = 120 mit Code 0xAD, E-Tasten = 73, 74, 76, 78, 80, 125, 127 mit
 Code 0xD8). Beleuchtet sind 110 Positionen. `<>` (19) und `#'` (68) der deutschen Tastatur haben keine LED; Unleashs
 „Alle“ setzt stattdessen den US-Backslash (82), den es auf der deutschen Tastatur nicht gibt.
-Positionen 128..255 sind immer 0. Das Layout steht in `src/Z10.Core/Device/Z10KeyLayout.cs`, ein Testskript in
+Maskenpositionen 128..255 sind immer 0. Das Layout steht in `src/Z10.Core/Device/Z10KeyLayout.cs`, ein Testskript in
 `tools/z10light.py`.
+
+## Unbestätigt
+
+- `01 FF` taucht in Mitschnitten von Unleash auf; die Bedeutung ist unbekannt.
+- `05` lädt Makros hoch (von der App nicht genutzt).
