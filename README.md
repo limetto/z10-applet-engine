@@ -10,7 +10,7 @@ Custom applets for the 160 × 32 pixel LCD of the **EVGA Z10** keyboard (the ori
 You build applets from elements in a layout editor; values come from **LibreHardwareMonitor** and other sources.
 The app can also configure the keyboard's key lighting and display colour.
 
-> Unofficial project, not affiliated with EVGA. The protocol was worked out from USB captures, see [docs/PROTOCOL.md](docs/PROTOCOL.md) (German).
+> Unofficial project, not affiliated with EVGA. The protocol was worked out from USB captures, see [docs/PROTOCOL.md](docs/PROTOCOL.md).
 
 ## Features
 

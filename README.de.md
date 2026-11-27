@@ -9,7 +9,7 @@
 Eigene Applets für das 160 × 32-Pixel-LCD der **EVGA Z10** (die ursprüngliche Variante ohne RGB, USB `3842:2601`).
 Die Applets setzt du im Layout-Editor aus Bausteinen zusammen. Die Werte kommen aus **LibreHardwareMonitor**.
 
-> Inoffizielles Projekt, nicht von EVGA. Das Display-Protokoll wurde durch Analyse ermittelt, siehe [docs/PROTOCOL.md](docs/PROTOCOL.md).
+> Inoffizielles Projekt, nicht von EVGA. Das Display-Protokoll wurde durch Analyse ermittelt, siehe [docs/PROTOCOL.de.md](docs/PROTOCOL.de.md).
 
 ## Funktionen
 

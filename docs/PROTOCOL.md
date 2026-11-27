@@ -1,108 +1,110 @@
-# LCD-Protokoll der EVGA Z10 (Nicht-RGB)
+# EVGA Z10 (non-RGB) LCD protocol
 
-Ermittelt aus USB-Mitschnitten (USBPcap) und dem Verhalten von EVGA Unleash, am Gerät getestet mit Firmware `0x0072`.
+*Deutsche Fassung: [PROTOCOL.de.md](PROTOCOL.de.md)*
 
-## Gerät
+Worked out from USB captures (USBPcap) and the behaviour of EVGA Unleash, tested on a device with firmware `0x0072`.
 
-- USB `3842:2601`, Produktname „EVGA TORQ Z10 Gaming Keyboard“
-- Interface 0 ist die Boot-Tastatur, Interface 1 eine zweite Tastatur (NKRO), Interface 2 ein HID-Verbund mit mehreren Report-IDs
-- Display und Einstellungen laufen über **Feature-Report ID 7** in der Collection mit Usage Page `0xFF01`. Die Länge ist 263 Byte plus Report-ID, also **264 Byte**.
-- Unter Windows ist das eine eigene HID-Collection. Man sucht sie über `HidP_GetCaps` (`UsagePage == 0xFF01`, `FeatureReportByteLength == 264`) und schreibt mit `HidD_SetFeature`.
+## Device
+
+- USB `3842:2601`, product name "EVGA TORQ Z10 Gaming Keyboard"
+- Interface 0 is the boot keyboard, interface 1 a second keyboard (NKRO), interface 2 an HID composite with several report IDs
+- Display and settings use **feature report ID 7** in the collection with usage page `0xFF01`. The length is 263 bytes plus the report ID, so **264 bytes**.
+- On Windows this is a separate HID collection. Find it with `HidP_GetCaps` (`UsagePage == 0xFF01`, `FeatureReportByteLength == 264`) and write with `HidD_SetFeature`.
 
 ## Display
 
-160 × 32 Pixel, monochrom, aufgeteilt in 4 Seiten zu je 8 Pixelzeilen.
+160 × 32 pixels, monochrome, split into 4 pages of 8 pixel rows each.
 
-### Seite schreiben
+### Writing a page
 
 ```
-Byte  0     0x07     Report-ID
-Byte  1     0x21     Befehl
-Byte  2     Seite    0..3, 0 = UNTERSTE Zeile, 3 = oberste
+Byte  0     0x07     report ID
+Byte  1     0x21     command
+Byte  2     page     0..3, 0 = BOTTOM row, 3 = top
 Byte  3–7   0x00
-Byte  8–167          160 Bytes, je ein Byte pro Spalte x = 0..159
-                     Bit 7 = oberstes Pixel der Seite, Bit 0 = unterstes
+Byte  8–167          160 bytes, one byte per column x = 0..159
+                     bit 7 = top pixel of the page, bit 0 = bottom
 Byte 168–263 0x00
 ```
 
-**Wichtig:** Die Firmware puffert die Seiten und bringt den Puffer erst aufs Display, wenn **Seite 3** geschrieben wird.
-Deshalb immer in der Reihenfolge 0, 1, 2, 3 senden. Wer Seiten überspringen will, die sich nicht geändert haben, muss Seite 3 trotzdem jedes Mal als letzte senden.
+**Important:** The firmware buffers the pages and only puts the buffer on the display when **page 3** is written.
+So always send them in the order 0, 1, 2, 3. If you skip pages that haven't changed, you still have to send page 3 last every time.
 
-Zwischen zwei Seiten braucht die Firmware etwas Zeit: 10 ms gingen im Test sauber, 0 ms nicht. Unleash wartet sogar rund 250 ms.
+The firmware needs some time between two pages: 10 ms worked reliably in testing, 0 ms did not. Unleash even waits around 250 ms.
 
-### Display freigeben
+### Releasing the display
 
 ```
 07 21 FE 00 …
 ```
 
-Danach zeigt die Firmware wieder ihre eigene Anzeige (Uhr, Profil usw.).
+After this the firmware shows its own screen again (clock, profile etc.).
 
-## Helligkeit und Kontrast
-
-```
-07 20 <Kontrast> <Helligkeit-1> 00 …
-Kontrast: Stufe 1..5 → 0x00, 0x0C, 0x18, 0x24, 0x30
-Helligkeit: Stufe 1..5 → 0..4
-```
-
-Wirkt sofort und wird nicht dauerhaft gespeichert. Die Farbe des Displays steht im Profilblock (Bytes 7..9, siehe Tastenbeleuchtung).
-
-## Tastenereignisse (E-Tasten)
-
-Kommen als **Input-Report 9** über die Collection mit Usage Page `0xFF00` (Interface 2, Interrupt-Endpoint `0x83`):
+## Brightness and contrast
 
 ```
-09 E2 <Zeile> <Spalte> 03 <Zustand> 00 00 00
-Position: Zeile × 8 + Spalte (wie in der Beleuchtungsmaske)
+07 20 <contrast> <brightness-1> 00 …
+Contrast:   level 1..5 → 0x00, 0x0C, 0x18, 0x24, 0x30
+Brightness: level 1..5 → 0..4
+```
+
+Takes effect immediately and is not stored permanently. The display colour is in the profile block (bytes 7..9, see key lighting).
+
+## Key events (E-keys)
+
+Arrive as **input report 9** on the collection with usage page `0xFF00` (interface 2, interrupt endpoint `0x83`):
+
+```
+09 E2 <row> <column> 03 <state> 00 00 00
+Position: row × 8 + column (as in the lighting mask)
 E1..E7:   73, 74, 76, 78, 80, 125, 127   (E6 = 0F/05, E7 = 0F/07)
-Zustand:  01 = gedrückt, 00 = losgelassen
+State:    01 = pressed, 00 = released
 ```
 
-Die Firmware meldet so auch normale Tasten (z. B. Pfeil rechts = `0C/05`, Taste 7 = `05/07`). Wer nur die Spalte
-auswertet, schaltet also auch bei diesen Tasten um – die Zeile muss geprüft werden.
+The firmware reports normal keys this way too (e.g. arrow right = `0C/05`, key 7 = `05/07`). If you only look at the
+column, these keys switch as well – the row has to be checked.
 
-Nach dem Loslassen folgt noch ein leerer Report 1 (`01 00 …`). Unter Windows lässt sich die Collection ohne Treiber mit `ReadFile` lesen.
-Während die Display-Seiten geschrieben werden, quittiert die Tastatur jede Seite mit `09 00 00 21 …`.
+Releasing a key is followed by an empty report 1 (`01 00 …`). On Windows the collection can be read with `ReadFile` without a driver.
+While display pages are being written, the keyboard acknowledges each page with `09 00 00 21 …`.
 
-## Tastenbeleuchtung
+## Key lighting
 
-Aus USBPcap-Mitschnitten von EVGA Unleash. Alle Befehle sind Feature-Reports 7 (264 Byte), Nutzdaten ab Byte 8.
-„GET“ heißt: Befehl per SET_REPORT senden, danach Report 7 per GET_REPORT lesen (Antwort beginnt mit `07 <Befehl>`).
+From USBPcap captures of EVGA Unleash. All commands are feature reports 7 (264 bytes), payload from byte 8.
+"GET" means: send the command with SET_REPORT, then read report 7 with GET_REPORT (the response starts with `07 <command>`).
 
-| Befehl | Richtung | Bedeutung |
+| Command | Direction | Meaning |
 |---|---|---|
-| `81` | GET | Status: `07 81 <aktives Profil> 00 00 01` |
-| `01 P` | SET | Profil P öffnen |
-| `10 P` + 256 Byte | SET | Tastenmaske, 1 Byte pro Position (01 = an), nur im Modus „Customize“ wirksam |
-| `82 n` | GET | Profilblock n (1..5) lesen |
-| `02 n` + 256 Byte | SET | Profilblock n schreiben |
-| `03 P` + 256 Byte | SET | Tastenbelegung Position → HID-Code (immer dieselbe Tabelle) |
-| `12 P` | SET | Speichern (Flash, ca. 3 s) |
-| `90 P` | GET | Tastenmaske von Profil P lesen |
+| `81` | GET | status: `07 81 <active profile> 00 00 01` |
+| `01 P` | SET | open profile P |
+| `10 P` + 256 bytes | SET | key mask, 1 byte per position (01 = on), only effective in "Customize" mode |
+| `82 n` | GET | read profile block n (1..5) |
+| `02 n` + 256 bytes | SET | write profile block n |
+| `03 P` + 256 bytes | SET | key assignment position → HID code (always the same table) |
+| `12 P` | SET | save (flash, about 3 s) |
+| `90 P` | GET | read key mask of profile P |
 
-Unleash schreibt: `81`, `01 P`, `10 P`, fünfmal `82 n` + `02 n`, ~9 × `81` (Polling), `03 P`, `12 P`, `90 P`.
-Die Änderung wird erst am Ende sichtbar; Unleash zeigt währenddessen „APPLYING DRIVER“ auf dem LCD.
+Unleash writes: `81`, `01 P`, `10 P`, five times `82 n` + `02 n`, ~9 × `81` (polling), `03 P`, `12 P`, `90 P`.
+The change only becomes visible at the end; meanwhile Unleash shows "APPLYING DRIVER" on the LCD.
 
-Profilblock (Nutzdaten, einer pro Profil 1..5, laut `hid.exe` und am Gerät geprüft):
+Profile block (payload, one per profile 1..5, according to `hid.exe` and verified on the device):
 
-| Byte | Inhalt |
+| Byte | Content |
 |---|---|
-| 1 | Spielmodus: Windows-Taste sperren |
-| 3 | 0x30, Bedeutung offen |
-| 4 | 0x80 \| Modus (0 = alle Tasten, 1 = Customize, 2 = Trigger, 3 = Explosion) |
-| 5 | Helligkeit 0..10 (0 = aus; Unleash setzt sie in allen Blöcken) |
-| 6 | Atmen (01) |
-| 7..9 | Farbe der Displaybeleuchtung R, G, B (Grün und Blau sind etwa doppelt so hell: Weiß ≈ `FF 7F 7F`, Gelb ≈ `FF 7F 00`; die App rechnet das um) |
-| 10..15 | Spielmodus: Alt+F4, Alt+Tab, Menütaste, Tab, Shift links, Strg+Esc sperren |
+| 1 | game mode: lock Windows key |
+| 3 | 0x30, meaning unknown |
+| 4 | 0x80 \| mode (0 = all keys, 1 = Customize, 2 = Trigger, 3 = Explosion) |
+| 5 | brightness 0..10 (0 = off; Unleash sets it in all blocks) |
+| 6 | breathing (01) |
+| 7..9 | display backlight colour R, G, B (green and blue are about twice as bright: white ≈ `FF 7F 7F`, yellow ≈ `FF 7F 00`; the app compensates for this) |
+| 10..15 | game mode: lock Alt+F4, Alt+Tab, menu key, Tab, left Shift, Ctrl+Esc |
 
-Ein einzelnes `02 n` ohne `12` ändert die Displayfarbe sofort (so blinkt Unleash das Display rot/blau) – und die
-Farbe ist auch nach dem Abstecken noch da. `02` landet also im nichtflüchtigen Speicher; für laufend wechselnde
-Farben ist das ungeeignet. Unbekannte Bytes werden unverändert zurückgeschrieben.
+A single `02 n` without `12` changes the display colour immediately (this is how Unleash flashes the display red/blue) – and the
+colour is still there after unplugging. So `02` ends up in non-volatile memory; it is not suitable for constantly changing
+colours. Unknown bytes are written back unchanged.
 
-Tastenpositionen: Die Tabelle von `03` ordnet jeder Position (0..127) einen HID-Code zu, darüber ist die Maske
-entschlüsselt (Q = 8, W = 16, A = 10, S = 18, D = 26, Fn = 120 mit Code 0xAD, E-Tasten = 73, 74, 76, 78, 80, 125, 127 mit
-Code 0xD8). Beleuchtet sind 110 Positionen. `<>` (19) und `#'` (68) der deutschen Tastatur haben keine LED; Unleashs
-„Alle“ setzt stattdessen den US-Backslash (82), den es auf der deutschen Tastatur nicht gibt.
-Positionen 128..255 sind immer 0. Das Layout steht in `src/Z10.Core/Device/Z10KeyLayout.cs`, ein Testskript in
+Key positions: The table from `03` assigns an HID code to each position (0..127), which is how the mask was
+decoded (Q = 8, W = 16, A = 10, S = 18, D = 26, Fn = 120 with code 0xAD, E-keys = 73, 74, 76, 78, 80, 125, 127 with
+code 0xD8). 110 positions are lit. `<>` (19) and `#'` (68) on the German keyboard have no LED; Unleash's
+"All" sets the US backslash (82) instead, which doesn't exist on the German keyboard.
+Positions 128..255 are always 0. The layout is in `src/Z10.Core/Device/Z10KeyLayout.cs`, a test script in
 `tools/z10light.py`.
