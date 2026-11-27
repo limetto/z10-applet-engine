@@ -34,6 +34,16 @@ public static class Z10Keys
         return e >= 0 ? $"E{e + 1}" : L("Taste Pos. {0}", code);
     }
 
+    /// <summary>
+    /// Meldung der Tastatur, dass das Profil gewechselt wurde (z. B. an der Tastatur selbst): 09 00 01 00 &lt;P&gt;.
+    /// Aus dem Code von EVGA Unleash (hid.exe); null = keine Profilmeldung.
+    /// </summary>
+    public static int? ParseProfileChange(ReadOnlySpan<byte> report)
+    {
+        if (report.Length < 5 || report[0] != 0x09 || report[1] != 0x00 || report[2] != 0x01 || report[3] != 0x00) return null;
+        return report[4] is >= 1 and <= 5 ? report[4] : null;
+    }
+
     /// <summary>Wertet einen Input-Report aus (inkl. Report-ID im ersten Byte). null = kein Tastenereignis.</summary>
     public static KeyEvent? Parse(ReadOnlySpan<byte> report)
     {
@@ -56,6 +66,9 @@ public sealed class Z10KeyListener : IDisposable
 
     /// <summary>Wird im Lese-Thread ausgelöst.</summary>
     public event Action<Z10Keys.KeyEvent>? KeyEvent;
+
+    /// <summary>Die Tastatur meldet ein neues aktives Profil (1..5). Im Lese-Thread.</summary>
+    public event Action<int>? ProfileChanged;
 
     public bool IsConnected => _handle is { IsInvalid: false, IsClosed: false };
 
@@ -85,6 +98,10 @@ public sealed class Z10KeyListener : IDisposable
                     if (Z10Keys.Parse(buffer.AsSpan(0, read)) is Z10Keys.KeyEvent ev)
                     {
                         try { KeyEvent?.Invoke(ev); } catch (Exception) { }
+                    }
+                    else if (Z10Keys.ParseProfileChange(buffer.AsSpan(0, read)) is int profile)
+                    {
+                        try { ProfileChanged?.Invoke(profile); } catch (Exception) { }
                     }
                 }
             }

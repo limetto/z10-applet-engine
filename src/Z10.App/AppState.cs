@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
@@ -29,6 +30,43 @@ public sealed class AppState : IDisposable
     public Z10KeyListener Keys { get; }
 
     public event Action? AppletsChanged;
+
+    private bool _profileRead;
+
+    /// <summary>Nach dem Verbinden einmal das aktive Profil lesen (mit etwas Abstand, damit der Start nicht stockt).</summary>
+    private void OnEngineStatus()
+    {
+        if (Engine.State != EngineState.Connected) { _profileRead = false; return; }
+        if (_profileRead) return;
+        _profileRead = true;
+        _ = ReadProfileLaterAsync();
+    }
+
+    private async Task ReadProfileLaterAsync()
+    {
+        for (int attempt = 0; attempt < 5; attempt++)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(3));
+            try { await RefreshProfileAsync(); return; }
+            catch (InvalidOperationException) { }          // gerade läuft ein anderer Gerätebefehl → später nochmal
+            catch (Exception) { return; }
+        }
+    }
+
+    /// <summary>Aktives Profil von der Tastatur lesen.</summary>
+    public async Task<int> RefreshProfileAsync()
+    {
+        int p = await Engine.RunDeviceJob(Z10Lighting.ReadActiveProfile, null);
+        Engine.NotifyProfile(p);
+        return p;
+    }
+
+    /// <summary>Aktives Profil wechseln (1..5).</summary>
+    public async Task SwitchProfileAsync(int profile)
+    {
+        int now = await Engine.RunDeviceJob(d => Z10Lighting.SwitchProfile(d, profile), null);
+        Engine.NotifyProfile(now);
+    }
 
     /// <summary>Das Tastaturlayout für die Beleuchtungsgrafik wurde geändert.</summary>
     public event Action? KeyboardLayoutChanged;
@@ -68,6 +106,8 @@ public sealed class AppState : IDisposable
         Engine.SetApplets(Applets);
         Keys = new Z10KeyListener();
         Keys.KeyEvent += Engine.HandleKey;
+        Keys.ProfileChanged += Engine.NotifyProfile;
+        Engine.StatusChanged += OnEngineStatus;
     }
 
     public void SaveApplet(Applet applet)

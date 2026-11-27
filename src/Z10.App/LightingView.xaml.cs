@@ -63,6 +63,11 @@ public partial class LightingView : UserControl
 
         foreach (var (_, name) in Effects) EffectBox.Items.Add(name);
         BuildGroupButtons();
+        state.Engine.ProfileChanged += p => Dispatcher.BeginInvoke(() =>
+        {
+            if (_busy || p == _shownProfile) return;
+            StatusText.Text = L("Profil {0} ist jetzt aktiv – „Von Tastatur lesen“ holt seine Einstellungen.", p);
+        });
         state.KeyboardLayoutChanged += () => Dispatcher.BeginInvoke(() =>
         {
             KeyCanvas.Children.Clear();
@@ -403,8 +408,12 @@ public partial class LightingView : UserControl
         }
     }
 
+    private int? _shownProfile;
+
     private void ApplyState(LightingState state, string verb)
     {
+        _shownProfile = state.Profile;
+        _state.Engine.NotifyProfile(state.Profile);
         var read = state.ToConfig();
         _config.Effect = read.Effect;
         _config.Brightness = read.Brightness;

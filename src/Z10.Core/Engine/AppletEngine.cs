@@ -148,6 +148,20 @@ public sealed class AppletEngine : IDisposable
     public event Action<Framebuffer, Applet>? FrameRendered;
     public event Action? StatusChanged;
 
+    /// <summary>Aktives Profil der Tastatur (1..5), null solange unbekannt.</summary>
+    public int? ActiveProfile { get; private set; }
+
+    /// <summary>Das aktive Profil hat sich geändert (aus beliebigem Thread).</summary>
+    public event Action<int>? ProfileChanged;
+
+    /// <summary>Neues aktives Profil bekannt geworden (Meldung der Tastatur, Lesen oder Wechsel).</summary>
+    public void NotifyProfile(int profile)
+    {
+        if (profile is < 1 or > 5 || ActiveProfile == profile) return;
+        ActiveProfile = profile;
+        ProfileChanged?.Invoke(profile);
+    }
+
     public EngineState State { get; private set; } = EngineState.Searching;
     public string StatusText { get; private set; } = L("Suche Tastatur …");
     public string? DeviceInfo { get; private set; }

@@ -412,5 +412,10 @@
  "Lizenz (MIT)": "License (MIT)",
  "Verwendete Bibliotheken": "Third-party libraries",
  "Inoffizielles Projekt ohne Verbindung zu EVGA. Sensorwerte von LibreHardwareMonitor (MPL 2.0).": "Unofficial project, not affiliated with EVGA. Sensor values from LibreHardwareMonitor (MPL 2.0).",
- "Version {0}": "Version {0}"
+ "Version {0}": "Version {0}",
+ "Die Tastatur hat den Profilwechsel nicht bestätigt (aktiv: Profil {0}).": "The keyboard did not confirm the profile switch (active: profile {0}).",
+ "Profil": "Profile",
+ "Profilwechsel fehlgeschlagen:": "Profile switch failed:",
+ "Aktives Profil der Tastatur. Klick wechselt das Profil (Beleuchtung und Displayfarbe gelten je Profil).": "Active keyboard profile. Click to switch profiles (lighting and display colour are per profile).",
+ "Profil {0} ist jetzt aktiv – „Von Tastatur lesen“ holt seine Einstellungen.": "Profile {0} is now active – “Read from keyboard” loads its settings."
 }

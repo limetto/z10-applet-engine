@@ -774,6 +774,33 @@ var tests = new List<(string Name, Action Body)>
         Eq((byte)0x42, kb.Blocks[0][100]);
     }),
 
+    ("Profil: lesen, wechseln, Meldung der Tastatur", () =>
+    {
+        Z10Lighting.CommandDelay = TimeSpan.Zero;
+        Z10Lighting.ReadDelay = TimeSpan.Zero;
+        Z10Lighting.ProfileSwitchDelay = TimeSpan.Zero;
+        var dev = new FakeDevice();
+        var kb = new FakeLightingKeyboard(dev);
+        Eq(1, Z10Lighting.ReadActiveProfile(dev));
+        dev.Reports.Clear();
+        Eq(3, Z10Lighting.SwitchProfile(dev, 3));
+        Seq(new[] { 0x01, 0x81 }, dev.Reports.Select(r => (int)r[1]).ToList());
+        Eq((byte)3, dev.Reports[0][2]);
+        kb.IgnoreSwitch = true;
+        True(Throws<IOException>(() => Z10Lighting.SwitchProfile(dev, 5)), "fehlender Wechsel nicht erkannt");
+
+        Eq(4, Z10Keys.ParseProfileChange(new byte[] { 0x09, 0x00, 0x01, 0x00, 0x04, 0, 0, 0, 0 }));
+        Eq(null, Z10Keys.ParseProfileChange(new byte[] { 0x09, 0x00, 0x00, 0x21, 0x00, 0, 0, 0, 0 }));   // Quittung
+        Eq(null, Z10Keys.ParseProfileChange(new byte[] { 0x09, 0x00, 0x01, 0x02, 0x00, 0, 0, 0, 0 }));   // anderer Zustand
+
+        var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => null, () => false, new AppSettings()) { ConnectGrace = TimeSpan.Zero };
+        int changed = 0;
+        e.ProfileChanged += _ => changed++;
+        e.NotifyProfile(2); e.NotifyProfile(2); e.NotifyProfile(9);
+        Eq(2, e.ActiveProfile);
+        Eq(1, changed);
+    }),
+
     ("Engine: Gerätebefehl hält die Anzeige an und meldet Fehler ohne Tastatur", () =>
     {
         var e = new AppletEngine(StaticSensorSource.Demo(), PixelTextRasterizer.Instance, () => null, () => false, new AppSettings()) { ConnectGrace = TimeSpan.Zero };
@@ -823,6 +850,12 @@ static void Seq(int[] expected, List<int> actual)
         throw new Exception($"erwartet [{string.Join(",", expected)}], war [{string.Join(",", actual)}]");
 }
 
+static bool Throws<T>(Action a) where T : Exception
+{
+    try { a(); return false; }
+    catch (T) { return true; }
+}
+
 static void SeqB(byte[] expected, byte[] actual)
 {
     if (!expected.SequenceEqual(actual))
@@ -869,6 +902,8 @@ sealed class FakeLightingKeyboard
 {
     public byte[][] Blocks { get; } = new byte[5][];
     public byte[] Mask { get; } = new byte[256];
+    public byte Active { get; set; } = 1;
+    public bool IgnoreSwitch { get; set; }
     private byte[]? _pendingMask;
     private byte _lastCmd, _lastArg;
 
@@ -889,12 +924,13 @@ sealed class FakeLightingKeyboard
             if (r[1] == 0x10) _pendingMask = payload;
             if (r[1] == 0x02) Blocks[r[2] - 1] = payload;
             if (r[1] == 0x12 && _pendingMask is not null) _pendingMask.CopyTo(Mask, 0);
+            if (r[1] == 0x01 && r[2] is >= 1 and <= 5 && !IgnoreSwitch) Active = r[2];
         };
         dev.OnGet = () =>
         {
             var r = new byte[264];
             r[0] = 7; r[1] = _lastCmd; r[2] = _lastArg;
-            if (_lastCmd == 0x81) { r[2] = 1; r[5] = 1; }
+            if (_lastCmd == 0x81) { r[2] = Active; r[5] = 1; }
             if (_lastCmd == 0x82) Blocks[_lastArg - 1].CopyTo(r, 8);
             if (_lastCmd == 0x90) Mask.CopyTo(r, 8);
             return r;

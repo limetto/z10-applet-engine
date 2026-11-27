@@ -26,6 +26,12 @@
             <TextBlock x:Name="SensorText" Text="LibreHardwareMonitor" FontSize="12" Foreground="#9BE3AE"/>
           </StackPanel>
         </Border>
+        <Border x:Name="ProfileChip" DockPanel.Dock="Right" CornerRadius="12" Padding="10,2" Margin="8,0,0,0" Background="#1C2230" VerticalAlignment="Center"
+                ToolTip="Aktives Profil der Tastatur. Klick wechselt das Profil (Beleuchtung und Displayfarbe gelten je Profil).">
+          <StackPanel x:Name="ProfilePanel" Orientation="Horizontal">
+            <TextBlock Text="Profil" FontSize="12" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+          </StackPanel>
+        </Border>
         <Border x:Name="DeviceChip" DockPanel.Dock="Right" CornerRadius="12" Padding="10,4" Background="#1F2A22" VerticalAlignment="Center">
           <StackPanel Orientation="Horizontal">
             <Ellipse x:Name="DeviceDot" Width="8" Height="8" Fill="{StaticResource OkBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>

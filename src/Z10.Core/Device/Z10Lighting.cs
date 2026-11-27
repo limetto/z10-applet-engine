@@ -186,6 +186,29 @@ public static class Z10Lighting
         return state;
     }
 
+    /// <summary>Aktives Profil (1..5) aus dem Status lesen. Dauert ca. 0,55 s.</summary>
+    public static int ReadActiveProfile(IZ10Device dev)
+    {
+        var status = Query(dev, CmdStatus, 0);
+        return status[2] is >= 1 and <= 5 ? status[2] : throw new IOException(L("Unerwartete Antwort auf Befehl 0x{0:X2}.", CmdStatus));
+    }
+
+    /// <summary>
+    /// Aktives Profil wechseln: „01 P“ wie der Profilwechsel im Infobereich von Unleash, danach Kontrolle über den Status.
+    /// Die Tastatur merkt sich das aktive Profil auch nach dem Abstecken. Dauert ca. 1 s.
+    /// </summary>
+    public static int SwitchProfile(IZ10Device dev, int profile)
+    {
+        if (profile is < 1 or > 5) throw new ArgumentOutOfRangeException(nameof(profile));
+        Send(dev, CmdOpen, (byte)profile);
+        Sleep(ProfileSwitchDelay);
+        int now = ReadActiveProfile(dev);
+        if (now != profile) throw new IOException(L("Die Tastatur hat den Profilwechsel nicht bestätigt (aktiv: Profil {0}).", now));
+        return now;
+    }
+
+    public static TimeSpan ProfileSwitchDelay { get; set; } = TimeSpan.FromMilliseconds(300);
+
     /// <summary>
     /// Ändert nur die Displayfarbe des aktiven Profils, ohne die komplette Speichersequenz (wie die Blink-Funktion
     /// von Unleash). Sofort sichtbar und – am Gerät geprüft – auch nach dem Abstecken noch da, landet also im

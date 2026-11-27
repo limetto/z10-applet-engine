@@ -24,6 +24,10 @@ Befehle:
   keys POS…   beliebige Positionen einschalten, z. B.  keys 8 10 16 18 26
   restore     Stand von vor dem ersten Schreiben wiederherstellen (Sicherung z10light_backup.json)
 
+Profil:
+  profile            aktives Profil anzeigen
+  profile N          auf Profil N (1..5) wechseln („01 N“ wie der Profilwechsel im Infobereich von Unleash)
+
 Displayfarbe (Vermutung: Block-Bytes 7..9 = R G B, Werte 0..255):
   color-test R G B   Farbe NUR per 02 senden (ohne Speichern, wie Unleashs Blink-Funktion),
                      5 s halten, dann alten Block zurückschreiben. Speichert nichts.
@@ -292,7 +296,7 @@ def restore(z: Z10Light):
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1] not in ("read", "test-iso", "all-de", "keys", "restore",
-                                                 "color-test", "blink", "color"):
+                                                 "color-test", "blink", "color", "profile"):
         print(__doc__); sys.exit(1)
     cmd = sys.argv[1]
     z = Z10Light()
@@ -307,6 +311,13 @@ def main():
             apply_mask(z, [int(a) for a in sys.argv[2:]])
         elif cmd == "restore":
             restore(z)
+        elif cmd == "profile":
+            if len(sys.argv) > 2:
+                n = int(sys.argv[2])
+                if not 1 <= n <= 5:
+                    sys.exit("Profil muss 1..5 sein.")
+                z.set(0x01, n); time.sleep(0.3)
+            print("Aktives Profil:", z.status()[2])
         elif cmd == "color-test":
             color_test(z, parse_rgb(sys.argv[2:]))
         elif cmd == "blink":

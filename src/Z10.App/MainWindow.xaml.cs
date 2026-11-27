@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Windows;
 using static Z10.Core.Localization.Loc;
 using System.Windows.Media;
@@ -39,6 +40,18 @@ public partial class MainWindow : Window
         ShowView(_applets);
 
         _state.Engine.StatusChanged += () => Dispatcher.BeginInvoke(UpdateStatus);
+        for (int p = 1; p <= 5; p++)
+        {
+            var b = new System.Windows.Controls.Button
+            {
+                Content = p.ToString(), Tag = p, Width = 24, Height = 22, MinHeight = 0, Padding = new Thickness(0),
+                Margin = new Thickness(2, 0, 0, 0), FontSize = 12,
+            };
+            b.Click += Profile_Click;
+            ProfilePanel.Children.Add(b);
+        }
+        _state.Engine.ProfileChanged += _ => Dispatcher.BeginInvoke(UpdateProfile);
+        UpdateProfile();
         _statusTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _statusTimer.Tick += (_, _) => UpdateStatus();
         _statusTimer.Start();
@@ -70,8 +83,46 @@ public partial class MainWindow : Window
         if (view == _lighting) _lighting.OnShown();
     }
 
+    private bool _switching;
+
+    private void UpdateProfile()
+    {
+        var engine = _state.Engine;
+        bool usable = engine.State == Z10.Core.Engine.EngineState.Connected && !_switching;
+        var accent = (System.Windows.Media.Brush)FindResource("AccentBrush");
+        foreach (var b in ProfilePanel.Children.OfType<System.Windows.Controls.Button>())
+        {
+            bool active = engine.ActiveProfile == (int)b.Tag;
+            b.Background = active ? accent : System.Windows.Media.Brushes.Transparent;
+            b.Foreground = active ? System.Windows.Media.Brushes.White : (System.Windows.Media.Brush)FindResource("MutedBrush");
+            b.FontWeight = active ? FontWeights.Bold : FontWeights.Normal;
+            b.IsEnabled = usable;
+        }
+    }
+
+    private async void Profile_Click(object sender, RoutedEventArgs e)
+    {
+        if (_switching || sender is not System.Windows.Controls.Button { Tag: int profile } || _state.Engine.ActiveProfile == profile) return;
+        _switching = true;
+        UpdateProfile();
+        try
+        {
+            await _state.SwitchProfileAsync(profile);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, L("Profilwechsel fehlgeschlagen:") + " " + ex.Message, L("Profil"), MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            _switching = false;
+            UpdateProfile();
+        }
+    }
+
     private void UpdateStatus()
     {
+        UpdateProfile();
         var engine = _state.Engine;
         DeviceText.Text = engine.Suspended ? L("Display freigegeben") : engine.StatusText;
         ReleaseButton.Content = engine.Suspended ? L("Display übernehmen") : L("Display freigeben");
