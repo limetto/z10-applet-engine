@@ -274,19 +274,42 @@ public static class Z10Lighting
 
     private static byte[] ReadBlock(IZ10Device dev, int n)
     {
-        var r = Query(dev, CmdReadBlock, (byte)n);
-        if (r[2] != n) throw new IOException(L("Unerwartete Antwort auf Block {0}.", n));
+        var r = Query(dev, CmdReadBlock, (byte)n, checkArg: true);
         return r[Z10Protocol.PayloadOffset..(Z10Protocol.PayloadOffset + 256)];
     }
 
-    private static byte[] Query(IZ10Device dev, byte cmd, byte arg)
+    /// <summary>Versuche, bis eine passende Antwort kommt (je Versuch: neu anfragen, dann mehrmals abholen).</summary>
+    public static int QueryAttempts { get; set; } = 3;
+    public static int QueryPolls { get; set; } = 5;
+    public static TimeSpan PollDelay { get; set; } = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>
+    /// Befehl senden und Antwort abholen. Am Gerät beobachtet: Direkt nach Schreibbefehlen liefert die Tastatur
+    /// manchmal noch eine Antwort für einen anderen Block oder einen Zwischenstand. Deshalb wird geprüft, ob die
+    /// Antwort zum Befehl (und bei <paramref name="checkArg"/> zum Argument) passt, und sonst erneut abgeholt bzw.
+    /// neu angefragt.
+    /// </summary>
+    private static byte[] Query(IZ10Device dev, byte cmd, byte arg, bool checkArg = false)
     {
-        Send(dev, cmd, arg);
-        var r = dev.GetFeature();
-        Sleep(ReadDelay);
-        if (r.Length < Z10Protocol.ReportLength || r[1] != cmd)
-            throw new IOException(L("Unerwartete Antwort auf Befehl 0x{0:X2}.", cmd));
-        return r;
+        byte[]? last = null;
+        for (int attempt = 0; attempt < Math.Max(1, QueryAttempts); attempt++)
+        {
+            Send(dev, cmd, arg);
+            for (int poll = 0; poll < Math.Max(1, QueryPolls); poll++)
+            {
+                if (poll > 0) Sleep(PollDelay);
+                var r = dev.GetFeature();
+                last = r;
+                if (r.Length >= Z10Protocol.ReportLength && r[1] == cmd && (!checkArg || r[2] == arg))
+                {
+                    Sleep(ReadDelay);
+                    return r;
+                }
+            }
+            Sleep(ReadDelay);
+        }
+        throw new IOException(L("Unerwartete Antwort auf Befehl 0x{0:X2}.", cmd)
+            + (last is null ? "" : " (" + Convert.ToHexString(last.AsSpan(0, Math.Min(16, last.Length))) + ")"));
     }
 
     private static void Send(IZ10Device dev, byte cmd, byte arg, ReadOnlySpan<byte> payload = default)

@@ -782,6 +782,30 @@ var tests = new List<(string Name, Action Body)>
         Eq((byte)0x81, kb.Blocks[1][4]);
     }),
 
+    ("Beleuchtung: falsche Antworten werden erneut abgeholt", () =>
+    {
+        Z10Lighting.CommandDelay = TimeSpan.Zero;
+        Z10Lighting.ReadDelay = TimeSpan.Zero;
+        Z10Lighting.PollDelay = TimeSpan.Zero;
+        var dev = new FakeDevice();
+        var kb = new FakeLightingKeyboard(dev);
+        int wrong = 2;
+        var inner = dev.OnGet!;
+        dev.OnGet = () =>
+        {
+            var r = inner();
+            if (r[1] == 0x82 && wrong-- > 0) r[2] = (byte)(r[2] + 1);   // erst zweimal die Antwort für den nächsten Block
+            return r;
+        };
+        var state = Z10Lighting.Read(dev);
+        Eq(5, state.Blocks.Length);
+        for (int i = 0; i < 5; i++) Eq((byte)0x42, state.Blocks[i][100]);
+        Eq((byte)0x30, state.Blocks[0][3]);
+        Eq((byte)0x00, state.Blocks[1][3]);   // Block 2 nicht mit Block 3 verwechselt
+        wrong = 1000;
+        True(Throws<IOException>(() => Z10Lighting.Read(dev)), "dauerhaft falsche Antwort nicht erkannt");
+    }),
+
     ("Profil: lesen, wechseln, Meldung der Tastatur", () =>
     {
         Z10Lighting.CommandDelay = TimeSpan.Zero;

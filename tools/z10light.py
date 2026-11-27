@@ -124,19 +124,29 @@ class Z10Light:
             raise IOError("GET fehlgeschlagen")
         return r
 
-    def query(self, cmd: int, arg: int = 0) -> bytes:
-        self.set(cmd, arg)
-        time.sleep(0.05)
-        return self.get()
+    def query(self, cmd: int, arg: int = 0, check_arg: bool = False) -> bytes:
+        # Direkt nach Schreibbefehlen liefert die Tastatur manchmal eine Antwort für einen anderen Block
+        # oder einen Zwischenstand → bis zu 3× anfragen und je 5× abholen, bis die Antwort passt.
+        last = b""
+        for _ in range(3):
+            self.set(cmd, arg)
+            time.sleep(0.05)
+            for poll in range(5):
+                if poll:
+                    time.sleep(0.1)
+                r = self.get()
+                last = r
+                if r[1] == cmd and (not check_arg or r[2] == arg):
+                    time.sleep(0.5)                       # wie Unleash: Pause nach jedem Lesen
+                    return r
+            time.sleep(0.5)
+        raise IOError(f"Unerwartete Antwort auf {cmd:02X} {arg:02X}: {last[:16].hex(' ')}")
 
     def status(self) -> bytes:
         return self.query(0x81)
 
     def read_block(self, n: int) -> bytes:
-        r = self.query(0x82, n)
-        if r[1] != 0x82 or r[2] != n:
-            raise IOError(f"Unerwartete Antwort auf 82 {n}: {r[:16].hex(' ')}")
-        return r[8:]
+        return self.query(0x82, n, check_arg=True)[8:]
 
     def read_mask(self, profile: int) -> bytes:
         r = self.query(0x90, profile)
@@ -150,7 +160,7 @@ class Z10Light:
         self.set(0x01, profile); time.sleep(0.3)
         self.set(0x10, profile, mask); time.sleep(0.3)
         for n in range(1, 6):
-            self.read_block(n); time.sleep(0.5)          # Unleash liest jeden Block direkt vor dem Schreiben
+            self.read_block(n)                           # Unleash liest jeden Block direkt vor dem Schreiben
             self.set(0x02, n, blocks[n]); time.sleep(0.3)
         for _ in range(9):                               # Unleash pollt ~9x im Abstand von ~0,57 s
             self.status(); time.sleep(0.5)
