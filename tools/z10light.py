@@ -269,6 +269,8 @@ def apply_mask(z: Z10Light, positions: list[int]):
     save_backup(profile, blocks, old_mask)
     blk = bytearray(blocks[profile])
     blk[4] = 0x80 | 1                                   # Modus Customize, alles andere unverändert
+    if blk[3] == 0:
+        blk[3] = 0x30                                   # ab Werk 0x30; ohne wirkt die Tastenauswahl vermutlich nicht
     if blk[5] == 0:
         print("Hinweis: Helligkeit ist 0 – es wird nichts leuchten. Setze auf 5.")
         blk[5] = 5

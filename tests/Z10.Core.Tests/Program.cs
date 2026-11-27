@@ -740,6 +740,7 @@ var tests = new List<(string Name, Action Body)>
         Eq((byte)0x30, b1[3]); Eq((byte)0x81, b1[4]); Eq((byte)7, b1[5]); Eq((byte)0, b1[6]); Eq((byte)0xFF, b1[7]);
         Eq((byte)7, kb.Blocks[4][5]);            // Helligkeit in allen Blöcken
         Eq((byte)0x00, kb.Blocks[4][4]);         // fremder Block behält seinen Modus
+        Eq((byte)0x00, kb.Blocks[4][3]);         // … und sein Byte 3
         Eq((byte)0x42, kb.Blocks[0][100]);       // unbekannte Bytes bleiben
         Eq(LightingEffect.Customize, state.ToConfig().Effect);
         Seq(new[] { 8, 10, 16, 18, 26 }, state.ToConfig().Keys);
@@ -772,6 +773,13 @@ var tests = new List<(string Name, Action Body)>
         Seq(new[] { 0x81, 0x82, 0x02 }, dev.Reports.Select(r => (int)r[1]).ToList());
         SeqB(new byte[] { 0x00, 0x7F, 0x00 }, kb.Blocks[0][7..10]);
         Eq((byte)0x42, kb.Blocks[0][100]);
+
+        // Profil ohne 0x30 in Byte 3: beim Schreiben wiederherstellen
+        kb.Active = 2;
+        Eq((byte)0x00, kb.Blocks[1][3]);
+        Z10Lighting.Write(dev, new LightingConfig { Effect = LightingEffect.Customize, Brightness = 5, Keys = new() { 8 } });
+        Eq((byte)0x30, kb.Blocks[1][3]);
+        Eq((byte)0x81, kb.Blocks[1][4]);
     }),
 
     ("Profil: lesen, wechseln, Meldung der Tastatur", () =>

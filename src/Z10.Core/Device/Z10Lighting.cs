@@ -90,7 +90,7 @@ public sealed class LightingState
 ///   03 P      Tastenbelegung Position → HID-Code (immer dieselbe Tabelle)
 ///   12 P      speichern (Flash, dauert ~3 s)
 ///   90 P      Maske zurücklesen (GET)
-/// Block: [1] Spielmodus Win-Taste, [3]=0x30?, [4]=0x80|Modus, [5]=Helligkeit 0..10, [6]=Atmen,
+/// Block: [1] Spielmodus Win-Taste, [3]=0x30 (ab Werk, ohne ihn wirkt die Tastenauswahl vermutlich nicht), [4]=0x80|Modus, [5]=Helligkeit 0..10, [6]=Atmen,
 ///        [7..9] Displayfarbe R G B, [10..15] Spielmodus Alt+F4, Alt+Tab, Menü, Tab, Shift links, Strg+Esc.
 /// Unbekannte Bytes bleiben erhalten. Schon ein einzelnes 02 ohne 12 ändert die Farbe sofort und dauerhaft.
 /// Die Änderungen landen im Flash der Tastatur: nur bei Bedarf schreiben, nicht laufend.
@@ -98,6 +98,8 @@ public sealed class LightingState
 public static class Z10Lighting
 {
     public const int Positions = 128;
+    public const int BlockFlags = 3;
+    public const byte DefaultFlags = 0x30;
     public const int BlockMode = 4;
     public const int BlockBrightness = 5;
     public const int BlockBreathing = 6;
@@ -163,6 +165,9 @@ public static class Z10Lighting
             block[BlockBrightness] = (byte)brightness;          // Unleash setzt die Helligkeit in allen Blöcken
             if (n == profile)
             {
+                // Byte 3 war in allen Profilen ab Werk 0x30 und ist bei einigen Profilen verloren gegangen (Abstürze
+                // von Unleash). Ohne den Wert wirkt die Tastenauswahl in diesem Profil nicht – also wiederherstellen.
+                if (block[BlockFlags] == 0) block[BlockFlags] = DefaultFlags;
                 block[BlockMode] = (byte)(0x80 | mode);
                 block[BlockBreathing] = (byte)(config.Effect == LightingEffect.Breathing ? 1 : 0);
             }
